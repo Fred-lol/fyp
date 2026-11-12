@@ -1,0 +1,10 @@
+.venv/
+.venv*/
+__pycache__/
+*.pyc
+*.tmp
+.pytest_cache/
+.DS_Store
+.env
+*.db
+AquaLoad-LAN-URL.txt

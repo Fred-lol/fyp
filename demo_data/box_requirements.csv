@@ -1,0 +1,11 @@
+﻿order_id,box_name,capacity_litre,length,width,height,quantity,loaded_weight_per_box
+1,50L Insulated Box,50,65.0,43.0,38.0,1,50.0
+2,100L Insulated Box,100,90.0,55.0,50.0,1,100.0
+3,50L Insulated Box,50,65.0,43.0,38.0,1,50.0
+3,100L Insulated Box,100,90.0,55.0,50.0,1,100.0
+4,50L Insulated Box,50,65.0,43.0,38.0,1,49.0
+4,75L Insulated Box,75,75.0,48.0,42.0,1,75.0
+4,100L Insulated Box,100,90.0,55.0,50.0,2,100.0
+5,35L Insulated Box,35,55.0,38.0,32.0,1,29.0
+5,75L Insulated Box,75,75.0,48.0,42.0,1,75.0
+5,100L Insulated Box,100,90.0,55.0,50.0,4,100.0

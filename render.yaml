@@ -1,0 +1,18 @@
+services:
+  - type: web
+    runtime: python
+    name: aquaload
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start_web.sh
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: SUPABASE_DB_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: OTP_FROM_EMAIL
+        sync: false
+      - key: OTP_PEPPER
+        sync: false

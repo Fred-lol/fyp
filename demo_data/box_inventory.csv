@@ -1,0 +1,5 @@
+﻿box_name,capacity_litre,length,width,height,max_seafood_weight_kg,inventory_quantity,status
+35L Insulated Box,35,55.0,38.0,32.0,35.0,40,Active
+50L Insulated Box,50,65.0,43.0,38.0,50.0,40,Active
+75L Insulated Box,75,75.0,48.0,42.0,75.0,40,Active
+100L Insulated Box,100,90.0,55.0,50.0,100.0,40,Active

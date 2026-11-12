@@ -1,0 +1,6 @@
+﻿order_id,customer,status,collection_point,required_boxes,estimated_weight_kg
+1,AquaLoad Demo Customer,Ready for Loading,Kangar Wholesale Collection Point,1,50.0
+2,AquaLoad Demo Customer,Ready for Loading,Kangar Wholesale Collection Point,1,100.0
+3,AquaLoad Demo Customer,Ready for Loading,Kangar Wholesale Collection Point,2,150.0
+4,AquaLoad Demo Customer,Ready for Loading,Kangar Wholesale Collection Point,4,324.0
+5,AquaLoad Demo Customer,Ready for Loading,Kangar Wholesale Collection Point,6,504.0
