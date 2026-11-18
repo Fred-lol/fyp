@@ -48,8 +48,16 @@ if "cart" not in st.session_state:
 
 
 def _catalogue_products(search: str, category: str) -> list[dict]:
-    """Use real inventory, including unavailable products shown as disabled."""
-    return list_products(search, category, "All")
+    """Return only seafood that a customer can order right now.
+
+    Products marked Unavailable, out of stock, or below AquaLoad's 10 kg
+    wholesale minimum remain hidden until staff replenishes and enables them.
+    """
+    return [
+        product
+        for product in list_products(search, category, "Available")
+        if float(product.get("stock_quantity") or 0) >= MIN_WHOLESALE_ORDER_KG
+    ]
 
 
 def _change_cart_quantity(product_id: int) -> None:
@@ -66,15 +74,12 @@ def _add_product_to_cart(product_id: int) -> None:
         st.session_state[f"cart_popover_quantity_{product_id}"] = quantity
 
 
-def _stock_state(product: dict) -> tuple[str, str, bool]:
+def _stock_state(product: dict) -> tuple[str, str]:
     stock = float(product.get("stock_quantity") or 0)
     unit = product.get("unit") or "kg"
-    available = product.get("availability_status") == "Available" and stock >= MIN_WHOLESALE_ORDER_KG
-    if not available:
-        return "out", "Out of stock · unavailable", False
     if stock <= LOW_STOCK_THRESHOLD:
-        return "low", f"Low stock · {stock:g} {unit} available", True
-    return "available", f"In stock · {stock:g} {unit} available", True
+        return "low", f"Low stock · {stock:g} {unit} available"
+    return "available", f"In stock · {stock:g} {unit} available"
 
 
 @st.fragment
@@ -122,14 +127,14 @@ def ordering_workspace() -> None:
 
     products = _catalogue_products(search, category)
     if not products:
-        st.info("No seafood matches your search or selected category.")
+        st.info("No seafood is currently available for this search or category. Please check again after stock is replenished.")
         return
 
     columns = st.columns(4, gap="small")
     for index, product in enumerate(products):
         product_id = product["product_id"]
         stock = float(product.get("stock_quantity") or 0)
-        stock_class, stock_message, can_order = _stock_state(product)
+        stock_class, stock_message = _stock_state(product)
         with columns[index % 4]:
             with st.container(border=True, key=f"seafood-card-{product_id}"):
                 st.html(seafood_card_image(product, PROJECT_DIR, height=170))
@@ -138,17 +143,14 @@ def ordering_workspace() -> None:
                 st.html(f'<p class="aq-product-description">{escape(product.get("description") or "Fresh seafood available for wholesale ordering.")}</p>')
                 st.html(f'<p class="aq-product-price">RM {float(product.get("unit_price") or 0):,.2f} / {product.get("unit") or "kg"}</p>')
                 st.html(f'<p class="aq-stock-banner {stock_class}">{stock_message}</p>')
-                if can_order:
-                    current = min(max(float(st.session_state.cart.get(product_id, MIN_WHOLESALE_ORDER_KG)), MIN_WHOLESALE_ORDER_KG), stock)
-                    in_cart = product_id in st.session_state.cart
-                    with st.form(f"cart_item_{product_id}", border=False):
-                        st.number_input(f"Quantity ({product.get('unit') or 'kg'})", min_value=MIN_WHOLESALE_ORDER_KG, max_value=stock, step=1.0, value=current, key=f"cart_quantity_{product_id}")
-                        st.caption(f"Minimum wholesale order: {MIN_WHOLESALE_ORDER_KG:g} kg")
-                        saved = st.form_submit_button("Add to cart", icon=":material/add_shopping_cart:", type="primary", use_container_width=True, on_click=_add_product_to_cart, args=(product_id,))
-                    if saved:
-                        st.toast(f"{product['product_name']} {'quantity updated' if in_cart else 'added to cart'}.", icon="✅")
-                else:
-                    st.button("Unavailable", disabled=True, use_container_width=True, key=f"unavailable_{product_id}")
+                current = min(max(float(st.session_state.cart.get(product_id, MIN_WHOLESALE_ORDER_KG)), MIN_WHOLESALE_ORDER_KG), stock)
+                in_cart = product_id in st.session_state.cart
+                with st.form(f"cart_item_{product_id}", border=False):
+                    st.number_input(f"Quantity ({product.get('unit') or 'kg'})", min_value=MIN_WHOLESALE_ORDER_KG, max_value=stock, step=1.0, value=current, key=f"cart_quantity_{product_id}")
+                    st.caption(f"Minimum wholesale order: {MIN_WHOLESALE_ORDER_KG:g} kg")
+                    saved = st.form_submit_button("Add to cart", icon=":material/add_shopping_cart:", type="primary", use_container_width=True, on_click=_add_product_to_cart, args=(product_id,))
+                if saved:
+                    st.toast(f"{product['product_name']} {'quantity updated' if in_cart else 'added to cart'}.", icon="✅")
 
 
 ordering_workspace()
