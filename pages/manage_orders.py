@@ -13,13 +13,11 @@ from components.theme import apply_theme, page_header
 from components.display import friendly_datetime
 from components.navigation import staff_sidebar, require_staff
 from constants import ORDER_STATUSES
-from services.collection_point_service import list_collection_points
 from services.box_service import list_box_inventory
 from services.order_service import (
     list_all_orders,
     get_order,
     order_counts,
-    set_collection_point,
     recommend_box_combinations,
     accept_box_recommendation,
     box_requirement_shortage_message,
@@ -48,14 +46,14 @@ def _accept_recommendation(order_id):
     if (current.get("payment") or {}).get("payment_status") != "Paid":
         return False, "A successful payment is required before saving the box requirement."
     if not current.get("collection_point_id"):
-        return False, "Assign an available collection point before saving the box requirement."
+        return False, "The customer must choose a collection point during payment before box requirements can be saved."
 
     return accept_box_recommendation(order_id, 0)
 
 
 page_header(
     "Customer Order Management",
-    "Review Customer orders, collection points and recommended standardized box requirements before loading.",
+    "Review customer orders and prepare standardized box requirements before loading.",
     "Seafood & Orders",
 )
 
@@ -127,35 +125,15 @@ if archived_view:
     with right:
         with st.container(border=True):
             st.markdown("### Archived Record")
-            st.success("This completed order is archived and read-only.")
-            st.write(f"**Archived on:** {order.get('archived_at') or 'Recorded in the archive'}")
+            st.info("This order is archived and read-only.")
+            st.write(f"**Archived on:** {friendly_datetime(order.get('archived_at'), 'Recorded in the archive')}")
             st.write("Collection point, box requirements, payment, and status history are retained in this record.")
     st.stop()
 
 with right:
     with st.container(border=True):
-        st.markdown("### Operational Actions")
+        st.markdown("### Box Requirements")
         _show_page_feedback(order["order_id"])
-
-        st.markdown("#### Collection Point")
-        points = list_collection_points("Available")
-        if points:
-            point_map = {f"{p['point_name']} · {p['city']}, {p['state']}": p for p in points}
-            current_point_id = order.get("collection_point_id")
-            labels = list(point_map)
-            default_idx = next((i for i, lbl in enumerate(labels) if point_map[lbl]["collection_point_id"] == current_point_id), 0)
-            chosen_label = st.selectbox("Available Collection Point", labels, index=default_idx)
-            if st.button("Save Collection Point", type="primary", use_container_width=True):
-                ok, msg = set_collection_point(order["order_id"], point_map[chosen_label]["collection_point_id"], st.session_state.user_id)
-                if ok:
-                    st.session_state.manage_orders_feedback = (order["order_id"], "success", msg)
-                    st.rerun()
-                else:
-                    st.error(msg, icon="⚠️")
-        else:
-            st.warning("No available collection points are configured.")
-
-        st.divider()
         st.markdown("### Recommended Box Requirement")
         total_weight = float(order["total_weight_kg"])
         st.metric("Total Seafood Weight", f"{total_weight:g} kg")

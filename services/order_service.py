@@ -379,7 +379,14 @@ def cancel_order(order_id, customer_id):
         return False, "This order can no longer be cancelled."
     with db_session() as conn:
         _restore_order_stock(conn, order_id, customer_id)
-        conn.execute("UPDATE seafood_orders SET status='Cancelled',updated_at=CURRENT_TIMESTAMP WHERE order_id=?", (order_id,))
+        conn.execute(
+            """
+            UPDATE seafood_orders
+            SET status='Cancelled', archived_at=CURRENT_TIMESTAMP, updated_at=CURRENT_TIMESTAMP
+            WHERE order_id=?
+            """,
+            (order_id,),
+        )
         conn.execute("UPDATE payments SET payment_status='Refunded' WHERE order_id=? AND payment_status='Paid'", (order_id,))
         conn.execute(
             "INSERT INTO order_status_history(order_id,status,updated_by,note) VALUES(?,?,?,?)",
@@ -389,14 +396,14 @@ def cancel_order(order_id, customer_id):
 
 
 def archive_expired_completed_orders():
-    """Keep completed orders in the database but remove them from normal views immediately."""
+    """Keep completed and cancelled orders in the database but outside normal views."""
     initialize_schema()
     with db_session() as conn:
         conn.execute(
             """
             UPDATE seafood_orders
             SET archived_at=CURRENT_TIMESTAMP
-            WHERE status='Completed'
+            WHERE status IN ('Completed','Cancelled')
               AND archived_at IS NULL
             """
         )
@@ -534,7 +541,7 @@ def update_order_status(order_id, new_status, updated_by, note=""):
             """
             UPDATE seafood_orders
             SET status=?,completed_at=CASE WHEN ?='Completed' THEN CURRENT_TIMESTAMP ELSE completed_at END,
-                archived_at=CASE WHEN ?='Completed' THEN CURRENT_TIMESTAMP ELSE archived_at END,
+                archived_at=CASE WHEN ? IN ('Completed','Cancelled') THEN CURRENT_TIMESTAMP ELSE archived_at END,
                 updated_at=CURRENT_TIMESTAMP
             WHERE order_id=?
             """,
