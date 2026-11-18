@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from bootstrap import bootstrap_app
+from components.alert_theme import apply_alert_theme
 from components.password_feedback import render_password_feedback
 from services.auth_service import (
     email_exists, is_staff_style_email, register_customer, valid_email, valid_phone,
@@ -30,6 +31,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+apply_alert_theme()
 
 
 # ============================================================

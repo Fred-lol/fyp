@@ -4,6 +4,7 @@ from pathlib import Path
 import streamlit as st
 
 from bootstrap import bootstrap_app
+from components.alert_theme import apply_alert_theme
 from components.public_shell import render_homepage_footer, render_homepage_header
 
 
@@ -19,6 +20,7 @@ st.set_page_config(
 )
 
 bootstrap_app()
+apply_alert_theme()
 
 
 # ============================================================

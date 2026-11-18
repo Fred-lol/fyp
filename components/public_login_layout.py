@@ -1,4 +1,5 @@
 import streamlit as st
+from components.alert_theme import apply_alert_theme
 
 
 LOGIN_CSS = """
@@ -31,6 +32,7 @@ header[data-testid="stHeader"], [data-testid="stSidebar"] { display:none!importa
 
 
 def render_public_login_header(logo_data: str, eyebrow: str, title: str, description: str) -> None:
+    apply_alert_theme()
     st.html(
         f"""{LOGIN_CSS}
         <div class="aq-login-header">

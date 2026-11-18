@@ -9,6 +9,7 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from bootstrap import bootstrap_app
+from components.alert_theme import apply_alert_theme
 from components.password_feedback import render_password_feedback
 from services.auth_service import validate_password_strength
 from services.password_reset_service import (
@@ -20,6 +21,7 @@ from services.password_reset_service import (
 
 bootstrap_app()
 st.set_page_config(page_title="Reset Password | AquaLoad", page_icon="🔐", layout="wide", initial_sidebar_state="collapsed")
+apply_alert_theme()
 
 if "recovery_step" not in st.session_state:
     st.session_state.recovery_step = 1

@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from bootstrap import bootstrap_app
+from components.alert_theme import apply_alert_theme
 from constants import STAFF_ROLES, ROLES
 from services.auth_service import authenticate_user
 
@@ -26,6 +27,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+apply_alert_theme()
 
 # This route is retained only for bookmarks made before the login split.
 # Send visitors to the dedicated portal pages rather than showing the old

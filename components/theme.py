@@ -1,4 +1,5 @@
 import streamlit as st
+from components.alert_theme import ALERT_CSS, UI_FOUNDATION_CSS
 from components.feedback import render_flash
 
 LIGHT_VARS = """
@@ -438,7 +439,9 @@ def _theme_css(preference: str) -> str:
     else:
         root = f":root{{{LIGHT_VARS}}}@media (prefers-color-scheme: dark){{:root{{{DARK_VARS}}}}}"
         control_css = f"@media (prefers-color-scheme: dark){{{DARK_SEGMENTED_CONTROL_CSS}}}"
-    return f"<style>{root}{BASE_CSS}{control_css}</style>"
+    # Semantic alert rules must be last because older compatibility rules in
+    # BASE_CSS intentionally target broad Streamlit alert selectors.
+    return f"<style>{root}{BASE_CSS}{control_css}{UI_FOUNDATION_CSS}{ALERT_CSS}</style>"
 
 
 def apply_theme(preference=None):
