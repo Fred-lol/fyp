@@ -8,7 +8,7 @@ COMMERCE_CSS = """
 <style>
 .st-key-catalogue_grid[data-testid="stVerticalBlock"]{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px!important}
 .st-key-catalogue_grid [class*="st-key-product_"]{height:100%;box-sizing:border-box;padding:18px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important;box-shadow:none!important;min-width:0}
-.st-key-catalogue_grid [class*="st-key-product_"] [data-testid="stVerticalBlock"]{gap:12px!important}
+.st-key-catalogue_grid [class*="st-key-product_"][data-testid="stVerticalBlock"]{display:flex!important;flex-direction:column!important;gap:10px!important;height:100%}
 .st-key-catalogue_grid .aq-seafood-card-image{width:100%;overflow:hidden;line-height:0;height:auto!important;aspect-ratio:4/3;border:0!important;border-radius:8px!important}
 .st-key-catalogue_grid .aq-seafood-card-image img{display:block;width:100%!important;max-height:none!important;height:100%!important;object-fit:cover!important}
 .aq-product-heading{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;margin-top:12px;min-height:52px}
@@ -18,6 +18,8 @@ COMMERCE_CSS = """
 .aq-product-copy{font-size:14px;line-height:1.5;color:var(--aq-text);height:63px;margin:8px 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .aq-product-pricing{display:flex;gap:8px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;min-height:52px;border-bottom:1px solid var(--aq-border);padding-bottom:12px}
 .aq-product-pricing strong{font-size:21px;color:var(--aq-text)}.aq-product-pricing small{font-size:13px;color:var(--aq-muted)}
+.st-key-catalogue_grid [class*="st-key-product_"] [data-testid="stForm"]{margin-top:auto!important}
+.st-key-catalogue_grid [class*="st-key-product_"] [data-testid="stNumberInput"]{margin-bottom:4px!important}
 .st-key-catalogue_grid [data-testid="stForm"]{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
 .st-key-catalogue_grid [data-testid="stFormSubmitButton"] button{box-shadow:none!important;background:var(--aq-primary-start)!important;color:var(--aq-on-primary)!important;min-height:44px!important}
 .st-key-cart_panel{width:min(420px,calc(100vw - 64px));max-width:100%;padding:4px!important}
@@ -42,10 +44,10 @@ def product_card(product, project_dir, on_add):
     with st.container(key=f'product_{product_id}'):
         st.html(seafood_card_image(product, project_dir) + f'''
         <div class="aq-product-heading"><h3>{name}</h3><span class="aq-stock-dot">{status}</span></div>
-        <div class="aq-product-meta">{escape(product.get('category') or 'Seafood')} · Sold by {unit}</div>
+        <div class="aq-product-meta">{escape(product.get('category') or 'Seafood')} &middot; Sold by {unit}</div>
         <p class="aq-product-copy">{escape(product.get('description') or 'Fresh seafood available for wholesale ordering.')}</p>
         <div class="aq-product-pricing"><div><strong>RM {float(product.get('unit_price') or 0):,.2f}</strong> <small>/ {unit}</small></div><small>{stock:g} {unit} available</small></div>''')
         current = min(max(float(st.session_state.cart.get(product_id, MIN_WHOLESALE_ORDER_KG)), MIN_WHOLESALE_ORDER_KG), stock)
         with st.form(f'cart_item_{product_id}', border=False):
-            st.number_input(f'Quantity ({unit}) · minimum {MIN_WHOLESALE_ORDER_KG:g}', min_value=MIN_WHOLESALE_ORDER_KG, max_value=stock, step=1.0, value=current, key=f'cart_quantity_{product_id}')
+            st.number_input(f'Quantity ({unit}, minimum {MIN_WHOLESALE_ORDER_KG:g})', min_value=MIN_WHOLESALE_ORDER_KG, max_value=stock, step=1.0, value=current, key=f'cart_quantity_{product_id}')
             st.form_submit_button('Add to cart', icon=':material/add_shopping_cart:', type='primary', width='stretch', on_click=on_add, args=(product_id, product['product_name']))

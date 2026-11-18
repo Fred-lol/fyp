@@ -15,11 +15,13 @@ def chart_style(figure, *, height=320, integer_axis=None):
     figure.update_layout(template='plotly_dark' if dark else 'plotly_white',
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
         font=dict(family='Arial, sans-serif', size=14, color=text),
-        height=height, margin=dict(l=12,r=20,t=64,b=48),
-        legend=dict(orientation='h',y=1.2,x=0,font=dict(size=13)),
-        bargap=.35, bargroupgap=.06, hoverlabel=dict(font_size=14))
-    figure.update_xaxes(tickangle=0, automargin=True, showgrid=False, zeroline=False)
-    figure.update_yaxes(automargin=True, gridcolor=grid, zeroline=False)
+        height=height, margin=dict(l=20,r=32,t=56,b=42),
+        legend=dict(orientation='h',y=1.18,x=0,font=dict(size=12),bgcolor='rgba(0,0,0,0)'),
+        bargap=.28, bargroupgap=.08, hovermode='closest',
+        hoverlabel=dict(font_size=13,bgcolor='#123b57',font_color='#ffffff',bordercolor='#123b57'))
+    figure.update_xaxes(tickangle=0, automargin=True, showgrid=False, zeroline=False,
+        ticks='outside',tickcolor=grid)
+    figure.update_yaxes(automargin=True, gridcolor=grid, griddash='dot', zeroline=False)
     if integer_axis:
         figure.update_layout(**{integer_axis: dict(tickformat=',d',dtick=1)})
     return figure
@@ -29,7 +31,7 @@ def capacity_chart(plans):
     figure = go.Figure()
     for key,name,color in [('space_utilization','Lorry volume (%)',TEAL),('weight_utilization','Weight capacity (%)',BLUE)]:
         values = [float(p[key]) for p in plans]
-        figure.add_bar(x=labels,y=values,name=name,marker_color=color,
+        figure.add_bar(x=labels,y=values,name=name,marker_color=color,marker_line_width=0,
             hovertemplate='%{x}<br>'+name+': %{y:.1f}%<extra></extra>')
     largest = max((float(p[k]) for p in plans for k in ('space_utilization','weight_utilization')), default=0)
     figure.update_layout(barmode='group',yaxis=dict(title='Capacity used (%)',range=[0,max(100,math.ceil(largest*1.12))]))
@@ -43,7 +45,7 @@ def bar_chart(labels, values, unit, *, horizontal=False, counts=False, color=TEA
     display = ['<br>'.join(textwrap.wrap(label, 28)) for label in labels]
     figure = go.Figure(go.Bar(
         x=values if horizontal else labels, y=labels if horizontal else values,
-        orientation='h' if horizontal else 'v',marker_color=color,width=.55,
+        orientation='h' if horizontal else 'v',marker_color=color,marker_line_width=0,width=.58,
         customdata=labels,
         hovertemplate='%{customdata}<br>%{'+('x' if horizontal else 'y')+(':.0f}' if counts else ':,.1f}')+' '+unit+'<extra></extra>'))
     axis = 'xaxis' if horizontal else 'yaxis'
