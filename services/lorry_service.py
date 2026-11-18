@@ -25,6 +25,11 @@ MALAYSIA_LORRY_LIMITS = {
     "weight": (500.0, 38000.0),
 }
 
+# "In Transit" is an operational state assigned only when a saved loading
+# plan marks its boxes as loaded. Staff can manually place a lorry in or out
+# of service, but cannot create a false trip from the profile page.
+MANUAL_LORRY_STATUSES = ("Available", "Unavailable")
+
 
 def is_valid_lorry_configuration(lorry):
     """Whether a stored lorry can safely be used for loading optimisation."""
@@ -96,8 +101,8 @@ def save_lorry(plate_number, length, width, height, max_weight, status, lorry_id
             unit = "kg" if field == "weight" else "cm"
             label = "Maximum load weight" if field == "weight" else f"Internal {field}"
             return False, f"{label} must be between {minimum:g} {unit} and {maximum:,.0f} {unit}."
-    if status not in LORRY_STATUSES:
-        return False, "Select a valid lorry status."
+    if status not in MANUAL_LORRY_STATUSES:
+        return False, "New lorries can only be set to Available or Unavailable. In Transit is assigned when boxes are loaded."
     try:
         with db_session() as conn:
             if lorry_id:
@@ -112,9 +117,9 @@ def save_lorry(plate_number, length, width, height, max_weight, status, lorry_id
 
 
 def set_lorry_status(lorry_id, status):
-    """Update availability only; lorry registration and capacity remain immutable."""
-    if status not in LORRY_STATUSES:
-        return False, "Select a valid lorry status."
+    """Manually update availability; In Transit is assigned by loading workflow."""
+    if status not in MANUAL_LORRY_STATUSES:
+        return False, "Only Available or Unavailable can be selected here. In Transit is assigned automatically after boxes are loaded."
     with db_session() as conn:
         result = conn.execute(
             "UPDATE lorry_profiles SET status=?, updated_at=CURRENT_TIMESTAMP WHERE lorry_id=?",

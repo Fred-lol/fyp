@@ -15,6 +15,7 @@ from components.navigation import require_staff, staff_sidebar
 from components.theme import apply_theme, page_header
 from constants import LORRY_STATUSES
 from services.lorry_service import (
+    MANUAL_LORRY_STATUSES,
     delete_lorry,
     list_lorries,
     MALAYSIA_LORRY_LIMITS,
@@ -38,7 +39,7 @@ if st.session_state.pop("lorry_clear_add_form", False):
     st.session_state["new_lorry_width"] = 0.0
     st.session_state["new_lorry_height"] = 0.0
     st.session_state["new_lorry_max_weight"] = 0.0
-    st.session_state["new_lorry_status"] = LORRY_STATUSES[0]
+    st.session_state["new_lorry_status"] = MANUAL_LORRY_STATUSES[0]
 
 if st.session_state.get("lorry_profiles_modal_state_version") != 1:
     st.session_state.pop("lorry_editing_id", None)
@@ -176,9 +177,17 @@ def _show_update_dialog(lorry):
         with column:
             st.number_input(label, value=float(value), step=1.0, disabled=True)
     st.number_input("Maximum load weight (kg)", value=float(lorry["max_weight"]), step=1.0, disabled=True)
-    st.selectbox("Lorry status", LORRY_STATUSES, index=LORRY_STATUSES.index(lorry["status"]), key=f"edit_lorry_status_{lorry_id}")
-    st.caption("Unavailable lorries cannot be selected for loading optimisation.")
-    st.button("Save status", type="primary", use_container_width=True, on_click=_save_lorry_update, args=(lorry,))
+    if lorry["status"] == "In Transit":
+        st.selectbox("Lorry status", ["In Transit"], disabled=True, key=f"edit_lorry_status_{lorry_id}")
+        st.caption("In Transit is controlled automatically after boxes are loaded. Complete the trip before changing this lorry's availability.")
+    else:
+        st.selectbox(
+            "Lorry status", MANUAL_LORRY_STATUSES,
+            index=MANUAL_LORRY_STATUSES.index(lorry["status"]),
+            key=f"edit_lorry_status_{lorry_id}",
+        )
+        st.caption("Choose Unavailable to keep this lorry out of loading optimisation.")
+        st.button("Save status", type="primary", use_container_width=True, on_click=_save_lorry_update, args=(lorry,))
 
 
 @st.dialog("Delete lorry profile", on_dismiss=_dismiss_delete_dialog)
@@ -262,6 +271,6 @@ with add_tab:
         minimum_weight, maximum_weight = MALAYSIA_LORRY_LIMITS["weight"]
         st.number_input("Maximum load weight (kg)", min_value=0.0, max_value=maximum_weight, value=0.0, step=1.0, key="new_lorry_max_weight")
         _field_feedback(errors, "weight", f"{minimum_weight:g} to {maximum_weight:,.0f} kg.")
-        st.selectbox("Lorry status", LORRY_STATUSES, key="new_lorry_status")
-        st.caption("Choose Unavailable if the lorry should not be used in loading optimisation yet.")
+        st.selectbox("Lorry status", MANUAL_LORRY_STATUSES, key="new_lorry_status")
+        st.caption("Choose Unavailable if the lorry should not be used in loading optimisation yet. In Transit is assigned automatically after boxes are loaded.")
         st.form_submit_button("Add lorry", type="primary", use_container_width=True, on_click=_save_new_lorry)
