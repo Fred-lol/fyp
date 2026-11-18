@@ -22,4 +22,27 @@ class OptimizerTests(unittest.TestCase):
         self.assertIn("10 kg", result["message"])
         self.assertIn("over capacity", result["message"])
 
+    def test_volume_failure_even_when_weight_is_safe(self):
+        lorry = {"plate_number": "SPACE 1", "internal_length": 100.0, "internal_width": 100.0,
+                 "internal_height": 100.0, "max_weight": 1_000.0}
+        boxes = [
+            {"order_id": 1, "box_profile_id": 1, "box_instance": 1, "box_name": "Large Box",
+             "length": 80.0, "width": 80.0, "height": 80.0, "loaded_weight": 20.0},
+            {"order_id": 1, "box_profile_id": 1, "box_instance": 2, "box_name": "Large Box",
+             "length": 80.0, "width": 80.0, "height": 80.0, "loaded_weight": 20.0},
+        ]
+        result = generate_plan(lorry, boxes)
+        self.assertFalse(result["success"])
+        self.assertIn("required insulated boxes need", result["message"])
+        self.assertIn("m³ short", result["message"])
+
+    def test_dimension_failure_even_when_volume_is_safe(self):
+        lorry = {"plate_number": "SPACE 2", "internal_length": 100.0, "internal_width": 100.0,
+                 "internal_height": 100.0, "max_weight": 1_000.0}
+        boxes = [{"order_id": 1, "box_profile_id": 1, "box_instance": 1, "box_name": "Long Box",
+                  "length": 110.0, "width": 20.0, "height": 20.0, "loaded_weight": 20.0}]
+        result = generate_plan(lorry, boxes)
+        self.assertFalse(result["success"])
+        self.assertIn("cannot be arranged safely", result["message"])
+
 if __name__ == "__main__": unittest.main()

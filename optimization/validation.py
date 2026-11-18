@@ -1,3 +1,6 @@
+from optimization.constraints import fully_supported
+
+
 def boxes_overlap(a, b, eps=1e-9):
     return not (
         a["x"] + a["placed_length"] <= b["x"] + eps
@@ -27,6 +30,8 @@ def validate_plan(placements, lorry, total_weight):
     for i, p in enumerate(placements):
         if not inside_lorry(p, lorry):
             errors.append(f"Placement {i + 1} is outside the lorry boundary.")
+        if not fully_supported(p, placements[:i]):
+            errors.append(f"Placement {i + 1} is not safely supported by the lorry floor or a suitable box.")
         for j in range(i):
             if boxes_overlap(p, placements[j]):
                 errors.append(f"Placements {j + 1} and {i + 1} overlap.")

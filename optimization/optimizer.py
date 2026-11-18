@@ -141,6 +141,21 @@ def generate_plan(lorry, boxes):
             ),
         }
 
+    lorry_volume = volume(lorry["internal_length"], lorry["internal_width"], lorry["internal_height"])
+    required_volume = sum(volume(box["length"], box["width"], box["height"]) for box in boxes)
+    if required_volume > lorry_volume + 1e-9:
+        shortfall = required_volume - lorry_volume
+        return {
+            "success": False,
+            "message": (
+                f"{lorry.get('plate_number', 'Selected lorry')} cannot be used: the required insulated boxes need "
+                f"{required_volume / 1_000_000:,.2f} m³, but the usable lorry space is only "
+                f"{lorry_volume / 1_000_000:,.2f} m³ ({shortfall / 1_000_000:,.2f} m³ short). "
+                "Choose a larger lorry or remove orders."
+            ),
+            "placements": [],
+        }
+
     strategies = (
         ("largest_first", "depth_first"),
         ("largest_first", "width_first"),
@@ -156,7 +171,11 @@ def generate_plan(lorry, boxes):
     if not candidates:
         return {
             "success": False,
-            "message": "No safe placement could be found. Check the lorry dimensions, box sizes, and weight limit.",
+            "message": (
+                "The selected boxes cannot be arranged safely inside this lorry. "
+                "Their dimensions or safe stacking requirements do not form a valid 3D layout, even though the "
+                "total box volume fits. Choose a lorry with larger internal dimensions or split the orders."
+            ),
             "placements": [],
         }
 
@@ -166,7 +185,6 @@ def generate_plan(lorry, boxes):
     if not valid:
         return {"success": False, "message": "; ".join(errors), "placements": placements}
 
-    lorry_volume = volume(lorry["internal_length"], lorry["internal_width"], lorry["internal_height"])
     used_volume = sum(volume(item["placed_length"], item["placed_width"], item["placed_height"]) for item in placements)
     utilization = utilization_percent(used_volume, lorry_volume)
     weight_utilization = utilization_percent(total_weight, float(lorry["max_weight"]))

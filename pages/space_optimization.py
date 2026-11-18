@@ -250,6 +250,11 @@ if result and result.get("ui_signature") == current_signature:
         c3.metric("Loaded Weight", f"{m['total_weight']:,.1f} kg")
         c4.metric("Remaining Weight", f"{m['remaining_weight_capacity']:,.1f} kg")
 
+        space_a, space_b, space_c = st.columns(3)
+        space_a.metric("Box Volume Used", f"{m['space_utilization']:.1f}%")
+        space_b.metric("Usable Lorry Space", f"{m['lorry_volume'] / 1_000_000:,.2f} m³")
+        space_c.metric("Remaining Space", f"{m['remaining_volume'] / 1_000_000:,.2f} m³")
+
         preview = pd.DataFrame([{
             "Sequence": p["sequence_number"],
             "Box Label": p.get("box_label", f"O{p['order_id']}-B{p['box_instance']:02d}"),

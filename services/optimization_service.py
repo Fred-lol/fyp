@@ -1,6 +1,7 @@
 from database.db import db_session
 from services.lorry_service import get_lorry
 from optimization.optimizer import generate_plan
+from optimization.validation import validate_plan
 
 
 def build_box_instances(order_ids):
@@ -121,7 +122,11 @@ def save_optimization(result, created_by, mark_loaded=False):
         # A preview may be stale if staff changed the lorry or its capacity in
         # another session, so the database write must never rely on UI state.
         current_lorry = conn.execute(
-            "SELECT lorry_id, plate_number, max_weight, status FROM lorry_profiles WHERE lorry_id=?",
+            """
+            SELECT lorry_id, plate_number, internal_length, internal_width, internal_height,
+                   max_weight, status
+            FROM lorry_profiles WHERE lorry_id=?
+            """,
             (lorry["lorry_id"],),
         ).fetchone()
         if not current_lorry:
@@ -134,6 +139,19 @@ def save_optimization(result, created_by, mark_loaded=False):
                 f"Loading plan not saved: {current_lorry['plate_number']} can carry up to "
                 f"{live_capacity:,.0f} kg, but the selected orders total {planned_weight:,.0f} kg "
                 f"({excess_weight:,.0f} kg over capacity). Choose a larger lorry or remove orders."
+            ), None
+
+        # Validate the exact 3D coordinates again at the write boundary. This
+        # prevents an old preview or stale browser state from saving boxes that
+        # are outside the live lorry dimensions, overlap, or are unsupported.
+        physical_lorry = dict(current_lorry)
+        layout_valid, layout_errors = validate_plan(
+            result.get("placements", []), physical_lorry, planned_weight
+        )
+        if not layout_valid:
+            return False, (
+                "Loading plan not saved: the boxes no longer form a safe layout in "
+                f"{current_lorry['plate_number']}. " + " ".join(layout_errors)
             ), None
 
         if mark_loaded and current_lorry["status"] != "Available":
