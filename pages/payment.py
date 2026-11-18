@@ -235,7 +235,7 @@ with left:
         elif not selected_point:
             st.caption("Required before payment. Choose a collection point for this order.")
         elif selected_point["state"] == "Perlis":
-            st.success(
+            st.info(
                 f"Self-pickup: collect at {selected_point['point_name']}. "
                 "This order will not be sent to lorry loading."
             )

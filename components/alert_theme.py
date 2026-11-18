@@ -62,9 +62,9 @@ ALERT_CSS = r"""
 [data-testid="stAlert"],
 [data-testid="stAlertContainer"] [data-testid="stAlert"],
 [data-testid="stAlertContainer"] [role="alert"]{
-  margin:10px 0 16px!important;padding:0!important;
+  margin:12px 0 18px!important;padding:0!important;
   border-radius:12px!important;border-width:1px!important;border-style:solid!important;
-  box-shadow:0 7px 16px rgba(0,0,0,.14)!important;color:#fff!important;opacity:1!important;
+  overflow:hidden!important;box-shadow:0 6px 14px rgba(0,0,0,.12)!important;color:#fff!important;opacity:1!important;
 }
 /* Successful completed action. */
 [data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]),
@@ -91,8 +91,11 @@ ALERT_CSS = r"""
 [data-testid="stAlertContainer"] [role="alert"] *{color:#fff!important;-webkit-text-fill-color:#fff!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
 [data-testid^="stAlertContent"]{
   display:flex!important;align-items:flex-start!important;gap:10px!important;
-  padding:14px 16px!important;
+  padding:16px 20px!important;
 }
+[data-testid="stAlert"] > div:first-child,
+[data-testid="stAlertContainer"] [data-testid="stAlert"] > div:first-child,
+[data-testid="stAlertContainer"] [role="alert"] > div:first-child{padding:16px 20px!important}
 [data-testid^="stAlertContent"] > div{min-width:0!important}
 [data-testid="stAlert"] p,
 [data-testid="stAlertContainer"] [data-testid="stAlert"] p,

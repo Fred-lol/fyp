@@ -48,7 +48,7 @@ with st.container(border=True):
         f"**Collection Point:** {order.get('collection_point_name') or order.get('collection_point') or 'Not assigned'}"
     )
     if order.get("collection_assignment") == "Local Pickup":
-        st.success("Your order is a Perlis self-pickup order and will not be assigned to a lorry.")
+        st.info("Your order is a Perlis self-pickup order and will not be assigned to a lorry.")
     else:
         st.caption("Staff will manually update the operational order status as the order is prepared, loaded and completed.")
 

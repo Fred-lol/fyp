@@ -39,7 +39,7 @@ for o in orders:
         st.write(f"**Status:** {detail['status']}")
         st.write(f"**Collection Point:** {detail['collection_point'] or 'Not assigned yet'}")
         if detail.get("collection_assignment") == "Local Pickup":
-            st.success(f"Self-pickup at {detail['collection_point']}. No lorry delivery is required.")
+            st.info(f"Self-pickup at {detail['collection_point']}. No lorry delivery is required.")
         st.write(f"**Total Order Weight:** {float(detail.get('total_weight_kg') or 0):g} kg")
         payment = detail.get("payment") or {}
         st.write(f"**Payment Status:** {payment.get('payment_status') or 'Not Paid'}")

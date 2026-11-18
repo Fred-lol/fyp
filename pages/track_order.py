@@ -148,7 +148,7 @@ with left:
     if location:
         st.write(location)
     if order.get("collection_assignment") == "Local Pickup":
-        st.success(f"Self-pickup: collect this order from {collection_name}. No lorry delivery is required.")
+        st.info(f"Self-pickup: collect this order from {collection_name}. No lorry delivery is required.")
     if collection_name == "Not assigned yet":
         st.info("Staff will assign a collection point before loading is arranged.")
 with right:
