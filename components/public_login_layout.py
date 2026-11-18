@@ -24,8 +24,6 @@ header[data-testid="stHeader"], [data-testid="stSidebar"] { display:none!importa
 [data-testid="stFormSubmitButton"] { width:100%!important; }
 [data-testid="stFormSubmitButton"] button { width:100%!important; min-height:58px!important; margin-top:12px; border:none!important; border-radius:13px!important; color:#ffffff!important; background:linear-gradient(135deg,#087ead,#0db4b9)!important; font-size:17px!important; font-weight:800!important; box-shadow:0 11px 24px rgba(0,135,155,.18); }
 [data-testid="stFormSubmitButton"] button p, [data-testid="stFormSubmitButton"] button span { color:#ffffff!important; }
-.aq-login-help { max-width:620px; margin:20px auto 0; padding:13px 16px; border:1px solid #d5e7e8; border-radius:11px; color:#607985; background:#eef8f8; font-size:11px; line-height:1.6; text-align:left; }
-.aq-login-help a { color:#008f97; font-weight:800; }
 @media(max-width:700px) { [data-testid="stMainBlockContainer"], .block-container { padding:22px 17px 20px!important; } .aq-title { font-size:35px; } .aq-description { font-size:13px; } [data-testid="stForm"] { padding:23px 19px 25px; border-radius:17px!important; } }
 </style>
 """

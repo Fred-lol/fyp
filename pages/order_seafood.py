@@ -11,10 +11,11 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from bootstrap import bootstrap_app
+from components.cards import empty_cart
 from components.navigation import customer_sidebar
-from components.seafood_images import seafood_card_image
+from components.commerce import COMMERCE_CSS, product_card
 from components.theme import apply_theme, page_header
-from constants import LOW_STOCK_THRESHOLD, MIN_WHOLESALE_ORDER_KG
+from constants import MIN_WHOLESALE_ORDER_KG
 from services.order_service import list_products, product_categories
 from services.payment_service import checkout_summary
 
@@ -24,23 +25,7 @@ st.set_page_config(page_title="Order Seafood | AquaLoad", page_icon="🐟", layo
 apply_theme()
 customer_sidebar()
 
-st.html("""
-<style>
-[data-testid="stMain"] [class*="st-key-seafood-card-"]{min-height:470px!important;padding:12px!important;border-radius:14px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;box-shadow:0 2px 8px rgba(3,28,53,.045)!important}
-[data-testid="stMain"] [class*="st-key-seafood-card-"] [data-testid="stVerticalBlock"]{gap:8px!important}
-[data-testid="stMain"] [class*="st-key-seafood-card-"] [data-testid="stForm"]{padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
-[data-testid="stMain"] [class*="st-key-seafood-card-"] .aq-seafood-card-image{height:170px!important}
-[data-testid="stMain"] [class*="st-key-seafood-card-"] h4{margin:2px 0 0!important;font-size:1.08rem!important;line-height:1.25!important}
-[data-testid="stMain"] [class*="st-key-seafood-card-"] [data-testid="stCaptionContainer"] p{margin:0!important;font-size:.78rem!important}
-.aq-product-description{min-height:2.7rem!important;margin:0!important;color:var(--aq-muted)!important;font-size:.84rem!important;line-height:1.5!important;display:-webkit-box!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:2!important;overflow:hidden!important}
-.aq-product-price{margin:0!important;color:var(--aq-navy)!important;font-size:1rem!important;font-weight:800!important}
-.aq-stock-banner{margin:0!important;padding:7px 10px!important;border-radius:8px!important;font-size:.78rem!important;font-weight:750!important;line-height:1.3!important}
-.aq-stock-banner.available{background:var(--aq-status-success-bg)!important;color:var(--aq-status-success-text)!important;border:1px solid color-mix(in srgb,var(--aq-status-success-text) 32%,transparent)!important}.aq-stock-banner.low{background:var(--aq-status-warning-bg)!important;color:var(--aq-status-warning-text)!important;border:1px solid color-mix(in srgb,var(--aq-status-warning-text) 32%,transparent)!important}.aq-stock-banner.out{background:var(--aq-status-danger-bg)!important;color:var(--aq-status-danger-text)!important;border:1px solid color-mix(in srgb,var(--aq-status-danger-text) 32%,transparent)!important}
-[data-testid="stMain"] [class*="st-key-seafood-card-"] .stNumberInput [data-baseweb="input"]{min-height:40px!important}[data-testid="stMain"] [class*="st-key-seafood-card-"] .stNumberInput [data-baseweb="input"] input,[data-testid="stMain"] [class*="st-key-seafood-card-"] .stNumberInput [data-baseweb="input"] button{height:40px!important}[data-testid="stMain"] [class*="st-key-seafood-card-"] [data-testid="stFormSubmitButton"]{margin-top:2px!important}[data-testid="stMain"] [class*="st-key-seafood-card-"] [data-testid="stFormSubmitButton"] button{min-height:41px!important}
-.st-key-cart_panel{min-width:min(380px,calc(100vw - 32px))!important;padding:4px!important}.st-key-cart_panel [class*="st-key-cart_line-"]{padding:10px 0!important;border-bottom:1px solid var(--aq-border)!important}.st-key-cart_panel [class*="st-key-cart_line-"]:last-of-type{border-bottom:0!important}.aq-cart-empty{padding:22px 12px!important;text-align:center!important;color:var(--aq-muted)!important}.aq-cart-empty-icon{display:block!important;margin:0 auto 8px!important;color:var(--aq-teal)!important;font-size:1.3rem!important}.aq-cart-empty strong{display:block!important;color:var(--aq-navy)!important;font-size:.95rem!important}.aq-cart-empty p{margin:4px 0 0!important;color:var(--aq-muted)!important;font-size:.84rem!important}.aq-cart-totals{margin-top:12px!important;padding-top:12px!important;border-top:1px solid var(--aq-border)!important}.aq-cart-total-amount{margin-top:3px!important;color:var(--aq-navy)!important;font-size:1.3rem!important;font-weight:800!important}
-@media(max-width:900px){[data-testid="stMain"] [class*="st-key-seafood-card-"]{min-height:0!important}[data-testid="stMain"] [class*="st-key-seafood-card-"] .aq-seafood-card-image{height:190px!important}}
-</style>
-""")
+st.html(COMMERCE_CSS)
 
 page_header("Order Seafood", "Browse the current wholesale catalogue, add items to your cart, then review payment.", "Customer Ordering")
 
@@ -63,24 +48,34 @@ def _catalogue_products(search: str, category: str) -> list[dict]:
 
 def _change_cart_quantity(product_id: int) -> None:
     quantity = float(st.session_state[f"cart_popover_quantity_{product_id}"])
-    if quantity >= MIN_WHOLESALE_ORDER_KG:
+    if _cart_quantity_available(product_id, quantity):
         st.session_state.cart[product_id] = quantity
         st.session_state[f"cart_quantity_{product_id}"] = quantity
 
 
-def _add_product_to_cart(product_id: int) -> None:
+def _add_product_to_cart(product_id: int, product_name: str) -> None:
     quantity = float(st.session_state[f"cart_quantity_{product_id}"])
-    if quantity >= MIN_WHOLESALE_ORDER_KG:
+    if _cart_quantity_available(product_id, quantity):
+        verb = "quantity updated" if product_id in st.session_state.cart else "added to cart"
+        st.session_state.catalogue_feedback = f"{product_name} {verb}."
         st.session_state.cart[product_id] = quantity
         st.session_state[f"cart_popover_quantity_{product_id}"] = quantity
 
 
-def _stock_state(product: dict) -> tuple[str, str]:
-    stock = float(product.get("stock_quantity") or 0)
-    unit = product.get("unit") or "kg"
-    if stock <= LOW_STOCK_THRESHOLD:
-        return "low", f"Low stock · {stock:g} {unit} available"
-    return "available", f"In stock · {stock:g} {unit} available"
+def _cart_quantity_available(product_id, quantity):
+    """Recheck stock at the action boundary, without fetching product images."""
+    from math import isfinite
+    if not isfinite(quantity) or quantity < MIN_WHOLESALE_ORDER_KG:
+        st.session_state.catalogue_error = f"Choose at least {MIN_WHOLESALE_ORDER_KG:g} kg."
+        return False
+    lines = checkout_summary([(product_id, quantity)])["items"]
+    if not lines or lines[0]["availability_status"] != "Available":
+        st.session_state.catalogue_error = "This seafood is no longer available."
+        return False
+    if quantity > lines[0]["stock_quantity"]:
+        st.session_state.catalogue_error = f"Only {lines[0]['stock_quantity']:g} kg of {lines[0]['product_name']} remains. Reduce the quantity."
+        return False
+    return True
 
 
 @st.fragment
@@ -96,11 +91,11 @@ def ordering_workspace() -> None:
             with st.container(key="cart_panel"):
                 st.subheader("Your Cart", anchor=False)
                 if not cart_summary["items"]:
-                    st.html("""<div class="aq-cart-empty"><span class="aq-cart-empty-icon">&#128722;</span><strong>Your cart is empty</strong><p>Add seafood from the catalogue to begin your order.</p></div>""")
+                    empty_cart()
                 else:
                     for line in cart_summary["items"]:
                         with st.container(key=f"cart_line_{line['product_id']}"):
-                            st.markdown(f"**{line['product_name']}**")
+                            st.html(f'<div class="aq-cart-line-title"><strong>{escape(line["product_name"])}</strong><strong>RM {line["line_total"]:,.2f}</strong></div>')
                             st.caption(f"RM {line['unit_price']:,.2f} / {line['unit']} · {line['quantity']:g} {line['unit']} · Subtotal RM {line['line_total']:,.2f}")
                             quantity_col, remove_col = st.columns([5, .75], vertical_alignment="bottom")
                             with quantity_col:
@@ -115,7 +110,7 @@ def ordering_workspace() -> None:
                                     st.session_state.cart.pop(line["product_id"], None)
                                     st.session_state.pop(f"cart_popover_quantity_{line['product_id']}", None)
                                     st.session_state.pop(f"cart_quantity_{line['product_id']}", None)
-                                    st.toast(f"{line['product_name']} removed from cart.")
+                                    st.session_state.catalogue_feedback = f"{line['product_name']} removed from cart."
                                     st.rerun(scope="fragment")
                     st.html(f"""<div class="aq-cart-totals"><strong>Total seafood weight</strong><div>{cart_summary['total_weight_kg']:g} kg</div><div class="aq-cart-total-amount">RM {cart_summary['total_amount']:,.2f}</div></div>""")
                     if st.button("Proceed to payment", type="primary", use_container_width=True, key="cart_proceed_payment"):
@@ -126,32 +121,20 @@ def ordering_workspace() -> None:
                             st.session_state.checkout_cart = list(st.session_state.cart.items())
                             st.switch_page("pages/payment.py")
 
+    if message := st.session_state.pop("catalogue_feedback", None):
+        st.success(message)
+    if message := st.session_state.pop("catalogue_error", None):
+        st.error(message)
+
     products = _catalogue_products(search, category)
     if not products:
         st.info("No seafood is currently available for this search or category. Please check again after stock is replenished.")
         return
 
-    columns = st.columns(4, gap="small")
-    for index, product in enumerate(products):
-        product_id = product["product_id"]
-        stock = float(product.get("stock_quantity") or 0)
-        stock_class, stock_message = _stock_state(product)
-        with columns[index % 4]:
-            with st.container(border=True, key=f"seafood-card-{product_id}"):
-                st.html(seafood_card_image(product, PROJECT_DIR, height=170))
-                st.markdown(f"#### {product['product_name']}")
-                st.caption(f"{product.get('category') or 'Seafood'} · Sold by {product.get('unit') or 'kg'}")
-                st.html(f'<p class="aq-product-description">{escape(product.get("description") or "Fresh seafood available for wholesale ordering.")}</p>')
-                st.html(f'<p class="aq-product-price">RM {float(product.get("unit_price") or 0):,.2f} / {product.get("unit") or "kg"}</p>')
-                st.html(f'<p class="aq-stock-banner {stock_class}">{stock_message}</p>')
-                current = min(max(float(st.session_state.cart.get(product_id, MIN_WHOLESALE_ORDER_KG)), MIN_WHOLESALE_ORDER_KG), stock)
-                in_cart = product_id in st.session_state.cart
-                with st.form(f"cart_item_{product_id}", border=False):
-                    st.number_input(f"Quantity ({product.get('unit') or 'kg'})", min_value=MIN_WHOLESALE_ORDER_KG, max_value=stock, step=1.0, value=current, key=f"cart_quantity_{product_id}")
-                    st.caption(f"Minimum wholesale order: {MIN_WHOLESALE_ORDER_KG:g} kg")
-                    saved = st.form_submit_button("Add to cart", icon=":material/add_shopping_cart:", type="primary", use_container_width=True, on_click=_add_product_to_cart, args=(product_id,))
-                if saved:
-                    st.toast(f"{product['product_name']} {'quantity updated' if in_cart else 'added to cart'}.", icon="✅")
+    with st.container(key="catalogue_grid"):
+        for product in products:
+            product_card(product, PROJECT_DIR, _add_product_to_cart)
+
 
 
 ordering_workspace()

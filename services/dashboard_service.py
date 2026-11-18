@@ -2,6 +2,7 @@
 
 from database.db import db_session
 from database.schema import initialize_schema
+from services.optimization_service import list_plans
 from constants import LOW_STOCK_THRESHOLD
 
 
@@ -52,7 +53,6 @@ def staff_dashboard_summary() -> dict:
             WHERE b.status = 'Active'
             """
         ).fetchone()
-        plans = conn.execute("SELECT COUNT(*) AS total FROM loading_plans").fetchone()
 
     return {
         "active_orders": int(orders["active"] or 0),
@@ -60,5 +60,5 @@ def staff_dashboard_summary() -> dict:
         "low_or_no_stock": int(seafood["low_stock"] or 0) + int(seafood["out_of_stock"] or 0),
         "available_lorries": int(lorries["total"] or 0),
         "available_boxes": int(boxes["total"] or 0),
-        "saved_plans": int(plans["total"] or 0),
+        "saved_plans": len(list_plans()),
     }

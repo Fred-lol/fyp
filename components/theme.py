@@ -1,5 +1,5 @@
 import streamlit as st
-from components.alert_theme import ALERT_CSS, UI_FOUNDATION_CSS
+from components.alert_theme import notification_css, UI_FOUNDATION_CSS
 from components.design_system import PORTAL_CSS
 from components.feedback import render_flash
 
@@ -12,8 +12,6 @@ LIGHT_VARS = """
   --aq-sidebar-text:#f3fbfd; --aq-table:#ffffff; --aq-soft:#eef8fa;
   --aq-status-success-bg:#d9f5eb; --aq-status-success-text:#075f4d; --aq-status-warning-bg:#fff2cf; --aq-status-warning-text:#825700;
   --aq-status-info-bg:#dff3fb; --aq-status-info-text:#075a7e; --aq-status-danger-bg:#fde3e5; --aq-status-danger-text:#992b32;
-  --aq-alert-success-bg:#ecfdf5; --aq-alert-success-border:#9cddc3; --aq-alert-success-text:#075f46; --aq-alert-info-bg:#eff8ff; --aq-alert-info-border:#9bcceb; --aq-alert-info-text:#075985;
-  --aq-alert-warning-bg:#fff8e8; --aq-alert-warning-border:#ebcf87; --aq-alert-warning-text:#805c00; --aq-alert-error-bg:#fff1f2; --aq-alert-error-border:#f3a3ab; --aq-alert-error-text:#9f1f2d;
   --aq-primary-start:#087ead; --aq-primary-end:#0db4b9; --aq-on-primary:#ffffff;
   --aq-primary-shadow:rgba(0,135,155,.18); --aq-primary-hover-start:#076f9b; --aq-primary-hover-end:#0ba2a8;
   --background-color:#ffffff!important; --secondary-background-color:#f5fbfd!important;
@@ -29,8 +27,6 @@ DARK_VARS = """
   --aq-sidebar-text:#f7fcfd; --aq-table:#0e2938; --aq-soft:#123342;
   --aq-status-success-bg:#124e43; --aq-status-success-text:#a4f1d6; --aq-status-warning-bg:#5b4510; --aq-status-warning-text:#ffe09a;
   --aq-status-info-bg:#104a66; --aq-status-info-text:#b7e9ff; --aq-status-danger-bg:#602b33; --aq-status-danger-text:#ffb8bd;
-  --aq-alert-success-bg:#103f36; --aq-alert-success-border:#277d69; --aq-alert-success-text:#b1efd9; --aq-alert-info-bg:#103d57; --aq-alert-info-border:#287da2; --aq-alert-info-text:#b9e8ff;
-  --aq-alert-warning-bg:#4c3a12; --aq-alert-warning-border:#906e24; --aq-alert-warning-text:#ffe2a0; --aq-alert-error-bg:#532a31; --aq-alert-error-border:#8d3d49; --aq-alert-error-text:#ffc0c5;
   --aq-primary-start:#35d2ca; --aq-primary-end:#4bdde2; --aq-on-primary:#042433;
   --aq-primary-shadow:rgba(53,210,202,.22); --aq-primary-hover-start:#57e2da; --aq-primary-hover-end:#75edf0;
   --background-color:#071a27!important; --secondary-background-color:#0e2938!important;
@@ -62,34 +58,31 @@ h1,h2,h3,h4{color:var(--aq-navy)!important;letter-spacing:-.02em}
 .aq-page-title{font-size:2.25rem;font-weight:800;color:var(--aq-navy);line-height:1.1;margin:0}.aq-page-desc{margin-top:.6rem;color:var(--aq-muted);font-size:.92rem;line-height:1.65;max-width:820px}
 .aq-card{background:var(--aq-card);border:1px solid var(--aq-border);border-radius:18px;padding:20px;box-shadow:0 12px 30px rgba(0,0,0,.07)}
 .aq-metric-label{font-size:.72rem;color:var(--aq-muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700}.aq-metric-value{font-size:1.75rem;color:var(--aq-navy);font-weight:800;margin-top:.2rem}
-.aq-empty{text-align:center;background:var(--aq-card);border:1px dashed var(--aq-border);border-radius:18px;padding:35px;color:var(--aq-muted)}
 .aq-note{background:var(--aq-card2);border:1px solid var(--aq-border);border-radius:12px;padding:13px 16px;color:var(--aq-muted);font-size:.83rem;line-height:1.6}
 .aq-profile-field{background:var(--aq-card2);border:1px solid var(--aq-border);border-radius:12px;padding:11px 14px;min-height:70px;box-sizing:border-box;margin-bottom:12px}
 .aq-profile-field-label{display:block;color:var(--aq-muted)!important;font-size:.75rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
 .aq-profile-field-value{display:block;color:var(--aq-text)!important;font-size:.98rem;font-weight:650;line-height:1.35;overflow-wrap:anywhere}
-.aq-seafood-card-image{width:100%;overflow:hidden;border-radius:10px;border:1px solid var(--aq-border);line-height:0}
-.aq-seafood-card-image img{display:block;width:100%;height:auto;max-height:260px;object-fit:initial;object-position:center;background:transparent}
 
-.stButton>button,.stFormSubmitButton>button,.stDownloadButton>button{border-radius:11px!important;border:none!important;background:linear-gradient(135deg,var(--aq-primary-start),var(--aq-primary-end))!important;color:var(--aq-on-primary)!important;font-family:Inter,"Segoe UI",Arial,sans-serif!important;font-size:.94rem!important;font-weight:800!important;line-height:1.2!important;letter-spacing:0!important;min-height:42px;box-shadow:0 9px 20px var(--aq-primary-shadow)!important}
+.stButton>button,.stFormSubmitButton>button,.stDownloadButton>button{border-radius:11px!important;border:none!important;background:var(--aq-primary-start)!important;color:var(--aq-on-primary)!important;font-family:Inter,"Segoe UI",Arial,sans-serif!important;font-size:.94rem!important;font-weight:800!important;line-height:1.2!important;letter-spacing:0!important;min-height:42px;box-shadow:none!important}
 .stButton>button p,.stFormSubmitButton>button p,.stDownloadButton>button p{color:var(--aq-on-primary)!important;font-family:inherit!important;font-size:inherit!important;font-weight:inherit!important;line-height:inherit!important;letter-spacing:inherit!important;margin:0!important}
 .stButton>button span:not([data-testid="stIconMaterial"]),.stFormSubmitButton>button span:not([data-testid="stIconMaterial"]),.stDownloadButton>button span:not([data-testid="stIconMaterial"]),.stButton>button svg,.stFormSubmitButton>button svg,.stDownloadButton>button svg{color:var(--aq-on-primary)!important;fill:currentColor!important;stroke:currentColor!important}
 .stButton>button:hover,.stFormSubmitButton>button:hover,.stDownloadButton>button:hover{border:none!important;color:var(--aq-on-primary)!important;background:linear-gradient(135deg,var(--aq-primary-hover-start),var(--aq-primary-hover-end))!important}
 .stButton>button[kind="tertiary"]{min-height:34px!important;padding:5px 7px!important;border:none!important;background:transparent!important;box-shadow:none!important;color:var(--aq-navy)!important}
 .stButton>button[kind="tertiary"]:hover{border:none!important;background:color-mix(in srgb,var(--aq-teal) 12%,transparent)!important;color:var(--aq-teal)!important}
-.stButton>button[kind="primary"],.stFormSubmitButton>button[kind="primary"]{background:linear-gradient(135deg,var(--aq-primary-start),var(--aq-primary-end))!important;color:var(--aq-on-primary)!important;border:none!important;box-shadow:0 9px 20px var(--aq-primary-shadow)!important}
+.stButton>button[kind="primary"],.stFormSubmitButton>button[kind="primary"]{background:var(--aq-primary-start)!important;color:var(--aq-on-primary)!important;border:none!important;box-shadow:none!important}
 .stButton>button[kind="primary"]:hover,.stFormSubmitButton>button[kind="primary"]:hover{background:linear-gradient(135deg,var(--aq-primary-hover-start),var(--aq-primary-hover-end))!important;color:var(--aq-on-primary)!important}
 .stButton>button[kind="primary"] p,.stButton>button[kind="primary"] span,.stFormSubmitButton>button[kind="primary"] p,.stFormSubmitButton>button[kind="primary"] span{color:var(--aq-on-primary)!important}
-.stButton>button[kind="secondary"]{background:linear-gradient(135deg,var(--aq-primary-start),var(--aq-primary-end))!important;color:var(--aq-on-primary)!important;border:none!important;box-shadow:0 9px 20px var(--aq-primary-shadow)!important}
+.stButton>button[kind="secondary"]{background:var(--aq-primary-start)!important;color:var(--aq-on-primary)!important;border:none!important;box-shadow:none!important}
 .stButton>button[kind="secondary"] *{color:var(--aq-on-primary)!important;fill:currentColor!important;stroke:currentColor!important}
 .stButton>button[kind="secondary"]:hover{background:linear-gradient(135deg,var(--aq-primary-hover-start),var(--aq-primary-hover-end))!important;color:var(--aq-on-primary)!important}
 /* Form submit buttons have an additional Streamlit wrapper.  Match normal
    action buttons exactly, including the Appearance form's Save button. */
-[data-testid="stFormSubmitButton"]>button,[data-testid="stForm"] [data-testid="stFormSubmitButton"]>button{border:none!important;border-radius:11px!important;background:linear-gradient(135deg,var(--aq-primary-start),var(--aq-primary-end))!important;color:var(--aq-on-primary)!important;font-family:Inter,"Segoe UI",Arial,sans-serif!important;font-size:.94rem!important;font-weight:800!important;line-height:1.2!important;letter-spacing:0!important;box-shadow:0 9px 20px var(--aq-primary-shadow)!important}
+[data-testid="stFormSubmitButton"]>button,[data-testid="stForm"] [data-testid="stFormSubmitButton"]>button{border:none!important;border-radius:11px!important;background:var(--aq-primary-start)!important;color:var(--aq-on-primary)!important;font-family:Inter,"Segoe UI",Arial,sans-serif!important;font-size:.94rem!important;font-weight:800!important;line-height:1.2!important;letter-spacing:0!important;box-shadow:none!important}
 [data-testid="stFormSubmitButton"]>button *,[data-testid="stForm"] [data-testid="stFormSubmitButton"]>button *{color:var(--aq-on-primary)!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
 [data-testid="stFormSubmitButton"]>button:hover,[data-testid="stForm"] [data-testid="stFormSubmitButton"]>button:hover{background:linear-gradient(135deg,var(--aq-primary-hover-start),var(--aq-primary-hover-end))!important;color:var(--aq-on-primary)!important}
 /* Streamlit popovers use their own trigger outside .stButton.  Keep the cart
    trigger legible in dark mode before hover, including its Material icon. */
-button[data-testid="stPopoverButton"],[data-testid="stPopover"]>button,[data-testid="stPopover"]>div>button{background:linear-gradient(135deg,var(--aq-primary-start),var(--aq-primary-end))!important;border:none!important;border-radius:11px!important;color:var(--aq-on-primary)!important;opacity:1!important;font-family:Inter,"Segoe UI",Arial,sans-serif!important;font-size:.94rem!important;font-weight:800!important;line-height:1.2!important;letter-spacing:0!important;box-shadow:0 9px 20px var(--aq-primary-shadow)!important}
+button[data-testid="stPopoverButton"],[data-testid="stPopover"]>button,[data-testid="stPopover"]>div>button{background:var(--aq-primary-start)!important;border:none!important;border-radius:11px!important;color:var(--aq-on-primary)!important;opacity:1!important;font-family:Inter,"Segoe UI",Arial,sans-serif!important;font-size:.94rem!important;font-weight:800!important;line-height:1.2!important;letter-spacing:0!important;box-shadow:none!important}
 button[data-testid="stPopoverButton"] *,[data-testid="stPopover"]>button *,[data-testid="stPopover"]>div>button *{color:var(--aq-on-primary)!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
 button[data-testid="stPopoverButton"]:hover,[data-testid="stPopover"]>button:hover,[data-testid="stPopover"]>div>button:hover{background:linear-gradient(135deg,var(--aq-primary-hover-start),var(--aq-primary-hover-end))!important;color:var(--aq-on-primary)!important}
 button[data-testid="stPopoverButton"]:hover *,[data-testid="stPopover"]>button:hover *,[data-testid="stPopover"]>div>button:hover *{color:var(--aq-on-primary)!important;fill:currentColor!important;stroke:currentColor!important}
@@ -117,7 +110,7 @@ button[data-testid="stPopoverButton"]:hover *,[data-testid="stPopover"]>button:h
 .stNumberInput [data-baseweb="input"] button svg,.stNumberInput [data-baseweb="input"] button svg *{color:var(--aq-text)!important;fill:currentColor!important;stroke:currentColor!important}
 [data-testid="stSegmentedControl"] button{background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;color:#063b63!important;opacity:1!important}
 [data-testid="stSegmentedControl"] button *,[data-testid="stSegmentedControl"] button p,[data-testid="stSegmentedControl"] button span{color:#063b63!important;opacity:1!important}
-[data-testid="stSegmentedControl"] button[aria-pressed="true"]{background:linear-gradient(135deg,var(--aq-primary-start),var(--aq-primary-end))!important;border-color:transparent!important;color:var(--aq-on-primary)!important}
+[data-testid="stSegmentedControl"] button[aria-pressed="true"]{background:var(--aq-primary-start)!important;border-color:transparent!important;color:var(--aq-on-primary)!important}
 [data-testid="stSegmentedControl"] button[aria-pressed="true"] *,[data-testid="stSegmentedControl"] button[aria-pressed="true"] p,[data-testid="stSegmentedControl"] button[aria-pressed="true"] span{color:var(--aq-on-primary)!important}
 [data-baseweb="popover"],[data-baseweb="menu"],[role="listbox"]{background:var(--aq-card)!important;color:var(--aq-text)!important}
 [role="option"],[role="option"] span{color:var(--aq-text)!important}
@@ -138,19 +131,6 @@ button[data-testid="stPopoverButton"]:hover *,[data-testid="stPopover"]>button:h
 [data-testid="stTabs"] button p{color:var(--aq-text)!important}
 [data-testid="stCaptionContainer"] p{color:var(--aq-muted)!important}
 hr{border-color:var(--aq-border)!important}
-/* Messages use self-contained high-contrast colours in every appearance. */
-[data-testid="stAlert"]{border-radius:12px!important;border-width:1px!important;font-weight:600!important}
-[data-testid="stAlert"],[data-testid="stAlertContainer"]{opacity:1!important}
-[data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]),[data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]){background:#075e5b!important;border:1px solid #20bdb7!important}
-[data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]),[data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]){background:#07547a!important;border:1px solid #3dbfe6!important}
-[data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]),[data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]){background:#704600!important;border:1px solid #f2ba42!important}
-[data-testid="stAlert"]:has([data-testid="stAlertContentError"]),[data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]){background:#84242a!important;border:1px solid #ff888c!important}
-[data-testid="stAlert"]:has([data-testid^="stAlertContent"]),[data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]),
-[data-testid="stAlert"]:has([data-testid^="stAlertContent"]) [data-testid^="stAlertContent"],[data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]) [data-testid^="stAlertContent"],
-[data-testid="stAlert"]:has([data-testid^="stAlertContent"]) [data-testid^="stAlertContent"] *,[data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]) [data-testid^="stAlertContent"] *,
-[data-testid="stAlert"]:has([data-testid^="stAlertContent"]) svg,[data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]) svg,
-[data-testid="stAlert"]:has([data-testid^="stAlertContent"]) svg *,[data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]) svg *{color:#ffffff!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
-
 /* Streamlit dialogs are portal elements; explicitly theme them for dark mode. */
 [data-testid="stDialog"],
 [data-testid="stDialog"] > div,
@@ -166,11 +146,6 @@ div[role="dialog"][aria-modal="true"] p,div[role="dialog"][aria-modal="true"] sp
 [data-testid="stDialog"] button[aria-label="Close"] svg,
 div[role="dialog"][aria-modal="true"] button[aria-label="Close"],
 div[role="dialog"][aria-modal="true"] button[aria-label="Close"] svg{color:var(--aq-text)!important;fill:currentColor!important;stroke:currentColor!important}
-[data-testid="stToast"]{background:var(--aq-card)!important;border:1px solid var(--aq-border)!important}
-[data-testid="stToast"],[data-testid="stToast"] *{color:var(--aq-text)!important;opacity:1!important}
-/* Fallbacks for Streamlit/BaseWeb alert and modal markup across versions. */
-[role="alert"],.stAlert,[data-baseweb="notification"]{background:#07547a!important;border:1px solid #3dbfe6!important;color:#ffffff!important}
-[role="alert"] *,.stAlert *,[data-baseweb="notification"] *{color:#ffffff!important;opacity:1!important}
 [data-baseweb="modal"],[data-baseweb="modal"] > div,[data-baseweb="modal"] [role="dialog"],
 .stDialog,.stDialog > div{background:var(--aq-card)!important;color:var(--aq-text)!important;border-color:var(--aq-border)!important}
 /* Remove Streamlit heading permalink icons and prevent # URL fragments. */
@@ -197,7 +172,7 @@ div[role="dialog"][aria-modal="true"] button[aria-label="Close"] svg{color:var(-
 .stButton>button[kind="secondary"],
 .stButton>button[data-testid="stBaseButton-secondary"],
 .stButton [data-testid="stBaseButton-secondary"],
-button[data-testid="stBaseButton-secondary"]{background:linear-gradient(135deg,var(--aq-primary-start),var(--aq-primary-end))!important;color:var(--aq-on-primary)!important;border:none!important;box-shadow:0 9px 20px var(--aq-primary-shadow)!important}
+button[data-testid="stBaseButton-secondary"]{background:var(--aq-primary-start)!important;color:var(--aq-on-primary)!important;border:none!important;box-shadow:none!important}
 .stButton>button[kind="secondary"] *,
 .stButton>button[data-testid="stBaseButton-secondary"] *,
 .stButton [data-testid="stBaseButton-secondary"] *,
@@ -214,24 +189,6 @@ button[data-testid="stBaseButton-secondary"]:hover{background:linear-gradient(13
 [data-testid="stSidebar"] .st-key-staff_logout button{background:#ffffff!important;border:1px solid #d6e6ec!important;color:#0b3d5c!important;box-shadow:none!important}
 [data-testid="stSidebar"] .st-key-customer_logout button *,
 [data-testid="stSidebar"] .st-key-staff_logout button *{color:#0b3d5c!important;fill:currentColor!important;stroke:currentColor!important}
-
-/* Streamlit wraps alerts in a second container on some versions.  Styling
-   both produced a distracting double border, so the wrapper is deliberately
-   invisible and only the actual message panel carries the colour, border and
-   shadow.  This applies to success, info, warning and error messages. */
-[data-testid="stAlertContainer"],
-[data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]){
-  background:transparent!important;
-  border:0!important;
-  border-radius:0!important;
-  box-shadow:none!important;
-  padding:0!important;
-}
-[data-testid="stAlertContainer"] [data-testid="stAlert"]{
-  margin:8px 0 14px!important;
-  border-radius:12px!important;
-  box-shadow:0 8px 20px rgba(0,0,0,.13)!important;
-}
 
 /* Data-frame toolbar controls (table, download, copy and full-screen) are
    Streamlit icon buttons rather than .stButton controls.  Give the toolbar
@@ -313,7 +270,7 @@ div[class*="stElementToolbar"] button:hover{
 /* Download buttons use a nested Streamlit wrapper. Match their text, icons,
    colour and hover behaviour to every other primary AquaLoad action. */
 [data-testid="stDownloadButton"] button,.stDownloadButton button{
-  background:linear-gradient(135deg,var(--aq-primary-start),var(--aq-primary-end))!important;
+  background:var(--aq-primary-start)!important;
   color:var(--aq-on-primary)!important;
   border:1px solid transparent!important;
   border-radius:11px!important;
@@ -351,7 +308,7 @@ div[class*="stElementToolbar"] button:hover{
    it as a secondary button, so explicitly give it the same accessible,
    theme-aware colour treatment as other upload actions. */
 [data-testid="stFileUploader"] button,
-[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"]{background:linear-gradient(135deg,var(--aq-primary-start),var(--aq-primary-end))!important;border:none!important;color:var(--aq-on-primary)!important;box-shadow:0 7px 16px var(--aq-primary-shadow)!important}
+[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"]{background:var(--aq-primary-start)!important;border:none!important;color:var(--aq-on-primary)!important;box-shadow:0 7px 16px var(--aq-primary-shadow)!important}
 [data-testid="stFileUploader"] button *,
 [data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"] *{color:var(--aq-on-primary)!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
 [data-testid="stFileUploader"] button:hover,
@@ -372,7 +329,7 @@ div[class*="stElementToolbar"] button:hover{
 .stDownloadButton > button:not(:disabled),
 [data-testid="stFormSubmitButton"] > button:not(:disabled),
 [data-testid="stDownloadButton"] > button:not(:disabled){
-  background:linear-gradient(135deg,var(--aq-primary-start),var(--aq-primary-end))!important;
+  background:var(--aq-primary-start)!important;
   color:var(--aq-on-primary)!important;
   border:1px solid transparent!important;
   border-radius:11px!important;
@@ -403,10 +360,6 @@ div[class*="stElementToolbar"] button:hover{
 .stDownloadButton > button:disabled *,[data-testid="stFormSubmitButton"] > button:disabled *,
 [data-testid="stDownloadButton"] > button:disabled *{color:var(--aq-muted)!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
 
-/* Give result messages a stable visual hierarchy, even inside a dialog. */
-[data-testid="stAlert"],[data-testid="stAlertContainer"],[role="alert"]{margin:8px 0 14px!important;box-shadow:0 8px 20px rgba(0,0,0,.13)!important}
-[data-testid="stAlert"] p,[data-testid="stAlertContainer"] p,[role="alert"] p{font-weight:650!important;line-height:1.5!important}
-
 /* Tables, forms and metric cards share the same quiet surface rhythm. */
 [data-testid="stDataFrame"]{box-shadow:0 7px 20px rgba(0,0,0,.05)!important}
 [data-testid="stMetric"]{min-height:104px!important;display:flex!important;flex-direction:column!important;justify-content:center!important}
@@ -423,7 +376,7 @@ div[class*="stElementToolbar"] button:hover{
 .aq-checkout-line{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--aq-border)}
 .aq-checkout-line:last-child{border-bottom:none}.aq-money{font-weight:800;color:var(--aq-navy)}
 .aq-soft-panel{background:var(--aq-soft);border:1px solid var(--aq-border);border-radius:14px;padding:16px}
-@media(max-width:768px){.aq-page-title{font-size:1.75rem}.block-container{padding-left:1rem;padding-right:1rem}.aq-seafood-card-image{height:220px!important}}
+@media(max-width:768px){.aq-page-title{font-size:1.75rem}.block-container{padding-left:1rem;padding-right:1rem}}
 """
 
 # Streamlit's segmented controls inject their own light button colours.  Use
@@ -448,9 +401,7 @@ def _theme_css(preference: str) -> str:
     else:
         root = f":root{{{LIGHT_VARS}}}@media (prefers-color-scheme: dark){{:root{{{DARK_VARS}}}}}"
         control_css = f"@media (prefers-color-scheme: dark){{{DARK_SEGMENTED_CONTROL_CSS}}}"
-    # Semantic alert rules must be last because older compatibility rules in
-    # BASE_CSS intentionally target broad Streamlit alert selectors.
-    return f"<style>{root}{BASE_CSS}{control_css}{UI_FOUNDATION_CSS}{PORTAL_CSS}{ALERT_CSS}</style>"
+    return f"<style>{root}{BASE_CSS}{control_css}{UI_FOUNDATION_CSS}{PORTAL_CSS}{notification_css(preference)}</style>"
 
 
 def apply_theme(preference=None):

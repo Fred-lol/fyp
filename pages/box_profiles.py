@@ -105,7 +105,7 @@ def _create_template():
 def _template_field_feedback(field, helper):
     message = st.session_state.get("box_template_errors", {}).get(field)
     if message:
-        st.error(message, icon="⚠️")
+        st.error(message)
     else:
         st.caption(helper)
 

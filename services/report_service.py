@@ -3,7 +3,7 @@ import io
 from collections import Counter
 
 from database.db import db_session
-from services.optimization_service import get_plan
+from services.optimization_service import get_plan, saved_weight_utilization
 
 
 def generate_report(plan_id, generated_by):
@@ -60,11 +60,11 @@ def get_report(report_id):
     report = dict(row)
     report["plan"] = get_plan(report["plan_id"])
     plan = report["plan"]
+    if not plan:
+        return None
     report["box_breakdown"] = dict(Counter(p["box_name"] for p in plan["placements"]))
     report["unused_space_percent"] = max(0.0, 100.0 - float(plan["space_utilization"]))
-    report["weight_usage_percent"] = (
-        float(plan["total_weight"]) / float(plan["max_weight"]) * 100.0 if float(plan["max_weight"]) else 0.0
-    )
+    report["weight_usage_percent"] = saved_weight_utilization(plan)
     report["validation_checks"] = [
         "All boxes are inside the lorry internal boundary.",
         "No saved box placements overlap.",
@@ -84,8 +84,9 @@ def get_report(report_id):
     return report
 
 
-def report_csv_bytes(report_id):
-    report = get_report(report_id)
+def report_csv_bytes(report_id, *, report=None):
+    if report is None:
+        report = get_report(report_id)
     if not report:
         return None
     plan = report["plan"]
@@ -103,7 +104,7 @@ def report_csv_bytes(report_id):
     writer.writerow(["Orders Included", len(plan["orders"])])
     writer.writerow(["Total Boxes", plan["total_boxes"]])
     writer.writerow(["Seafood / Loaded Weight (kg)", f"{plan['total_weight']:.2f}"])
-    writer.writerow(["Maximum Lorry Weight (kg)", f"{plan['max_weight']:.2f}"])
+    writer.writerow(["Maximum Lorry Weight (kg)", f"{plan['total_weight'] + plan['remaining_weight_capacity']:.2f}"])
     writer.writerow(["Remaining Weight Capacity (kg)", f"{plan['remaining_weight_capacity']:.2f}"])
     writer.writerow(["Space Utilization (%)", f"{plan['space_utilization']:.2f}"])
     writer.writerow(["Remaining Space (%)", f"{report['unused_space_percent']:.2f}"])

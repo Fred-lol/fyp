@@ -1,5 +1,6 @@
 """Apply AquaLoad's idempotent Supabase PostgreSQL schema migration."""
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -17,6 +18,8 @@ def initialize_schema():
     development can bootstrap a fresh project, while production should apply
     it through the dashboard or CI migration workflow before deployment.
     """
+    if os.environ.get("AQUALOAD_SCHEMA_PREPARED") == "1":
+        return
     with db_session() as conn:
         for migration in sorted(MIGRATIONS_DIR.glob("*.sql")):
             statements = [

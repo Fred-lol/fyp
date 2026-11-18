@@ -1,5 +1,6 @@
 import os
 import unittest
+from uuid import uuid4
 
 import database.db as db
 from database.testing import reset_test_database
@@ -50,15 +51,16 @@ class PaymentUITests(unittest.TestCase):
             self.customer,
             [(1, 10)],
             "Online Banking (FPX)",
-            {"bank": "Maybank2u", "account_name": "Payment Customer"},
+            {"bank": "Maybank2u", "demo_confirmed": True},
             collection_point_id=1,
+            submission_key=str(uuid4()),
         )
         self.assertTrue(ok)
         order = get_order(order_id, self.customer)
         payment = get_payment(order_id)
         self.assertEqual(order["status"], "Pending")
         self.assertEqual(order["collection_assignment"], "Local Pickup")
-        self.assertEqual(payment["payment_status"], "Paid")
+        self.assertEqual(payment["payment_status"], "Simulated")
         self.assertEqual(payment["amount"], 200.0)
 
 

@@ -20,19 +20,22 @@ def _clear_session():
     for key in [
         "logged_in", "user_id", "user_email", "user_role", "user_name",
         "selected_order_id", "selected_plan_id", "optimization_preview", "loading_plan_preview",
-        "portal_mode", "theme_preference", "cart", "checkout_cart", "last_paid_order_id"
+        "portal_mode", "theme_preference", "cart", "checkout_cart", "last_paid_order_id",
+        "checkout_fingerprint", "checkout_snapshot", "checkout_points", "checkout_token",
+        "checkout_busy", "payment_errors", "payment_success_pending"
     ]:
         st.session_state.pop(key, None)
+    for key in list(st.session_state):
+        if key.startswith(("payment_", "demo_confirmed_")):
+            st.session_state.pop(key, None)
 
 
-def require_login():
+def require_login(login_page=None):
     if not st.session_state.get("logged_in") or not st.session_state.get("user_id"):
-        # A concise authentication card keeps the recovery action and its
-        # explanation together, rather than producing a page-wide banner.
         with st.container(border=True, key="session_expired_card"):
             st.html("""
             <section class="aq-session-card" role="status" aria-label="Session expired">
-              <div class="aq-session-icon" aria-hidden="true">&#9711;</div>
+              <span class="aq-session-icon" aria-hidden="true"></span>
               <div>
                 <div class="aq-session-title">Session Expired</div>
                 <p>Your session has ended. Please sign in again to continue.</p>
@@ -40,12 +43,17 @@ def require_login():
             </section>
             """)
             if st.button("Back to Login", type="primary", key="session_expired_login", use_container_width=True):
-                st.switch_page("homepage.py")
+                if login_page is None:
+                    staff_portal = (st.session_state.get("user_role") in STAFF_ROLES
+                                    or st.session_state.get("portal_mode") == "staff")
+                    login_page = "pages/staff_login.py" if staff_portal else "pages/customer_login.py"
+                st.switch_page(login_page)
         st.stop()
 
 
 def require_role(*allowed_roles):
-    require_login()
+    login_page = "pages/customer_login.py" if ROLES["CUSTOMER"] in allowed_roles else "pages/staff_login.py"
+    require_login(login_page)
     if st.session_state.get("user_role") not in allowed_roles:
         st.error("You are not authorized to access this page.")
         st.stop()

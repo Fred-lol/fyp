@@ -43,7 +43,7 @@ def _accept_recommendation(order_id):
         return False, "This order is no longer available. Refresh the page and try again."
     if current["status"] != "Ready for Loading":
         return False, f"Only Ready for Loading orders can accept a box recommendation. This order is {current['status']}."
-    if (current.get("payment") or {}).get("payment_status") != "Paid":
+    if (current.get("payment") or {}).get("payment_status") not in {"Paid", "Simulated"}:
         return False, "A successful payment is required before saving the box requirement."
     if not current.get("collection_point_id"):
         return False, "The customer must choose a collection point during payment before box requirements can be saved."
@@ -159,7 +159,7 @@ with right:
                     st.session_state.manage_orders_feedback = (order["order_id"], "success", msg)
                     st.rerun()
                 else:
-                    st.error(msg, icon="⚠️")
+                    st.error(msg)
 
             if len(recommendations) > 1:
                 with st.expander("View Alternative Box Combinations"):
@@ -170,7 +170,7 @@ with right:
                             f"{rec['box_count']} boxes · {rec['total_capacity_kg']:g} kg capacity · {rec['unused_capacity_kg']:g} kg unused"
                         )
         else:
-            st.error(box_requirement_shortage_message(order["order_id"]), icon="⚠️")
+            st.error(box_requirement_shortage_message(order["order_id"]))
 
         with st.expander("Adjust Box Requirement Manually"):
             st.caption("Manual selections still must provide enough capacity and cannot exceed available box inventory.")
@@ -201,7 +201,7 @@ with right:
                     st.session_state.manage_orders_feedback = (order["order_id"], "success", msg)
                     st.rerun()
                 else:
-                    st.error(msg, icon="⚠️")
+                    st.error(msg)
 
         st.markdown("#### Current Requirement")
         if not order["box_requirements"]:

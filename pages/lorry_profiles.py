@@ -74,7 +74,7 @@ def _validate_lorry(plate, length, width, height, max_weight):
 
 def _field_feedback(errors, field, helper):
     if message := errors.get(field):
-        st.error(message, icon="⚠️")
+        st.error(message)
     else:
         st.caption(helper)
 

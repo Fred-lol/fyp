@@ -525,49 +525,6 @@ header[data-testid="stHeader"] {
 
 
 /* ============================================================
-   SMALL NOTE
-============================================================ */
-
-.aq-info {
-
-    max-width: 620px;
-
-    margin:
-        20px auto
-        0;
-
-    padding:
-        13px 16px;
-
-    border:
-        1px solid #d5e7e8;
-
-    border-radius:
-        11px;
-
-    color: #607985;
-
-    background: #eef8f8;
-
-    font-size: 11px;
-
-    line-height: 1.6;
-
-    text-align: left;
-
-}
-
-
-.aq-info-title {
-
-    color: #28576c;
-
-    font-weight: 800;
-
-}
-
-
-/* ============================================================
    FOOTER
 ============================================================ */
 
@@ -905,21 +862,8 @@ if st.session_state.portal_mode == "customer":
             st.switch_page("pages/register.py")
 
 
-    st.html(
-        """
-<div class="aq-info">
-
-    <span class="aq-info-title">
-        Need staff access?
-    </span>
-
-    Use the Staff Entry button on the homepage.
-    Staff accounts are managed separately from
-    customer accounts.
-
-</div>
-"""
-    )
+    st.info("**Need staff access?** Use the Staff Entry button on the homepage. "
+            "Staff accounts are managed separately from customer accounts.")
 
 
 # ============================================================
@@ -951,20 +895,8 @@ else:
             st.switch_page("pages/forgot_password.py")
 
 
-    st.html(
-        """
-<div class="aq-info">
-
-    <span class="aq-info-title">
-        Staff access only.
-    </span>
-
-    This portal is available to Warehouse Administrators,
-    Loading Supervisors and Seafood Suppliers.
-
-</div>
-"""
-    )
+    st.info("**Staff access only.** This portal is available to Warehouse Administrators, "
+            "Loading Supervisors and Seafood Suppliers.")
 
 
 # ============================================================

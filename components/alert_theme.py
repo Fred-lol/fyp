@@ -49,63 +49,141 @@ UI_FOUNDATION_CSS = r"""
 """
 
 
-# Streamlit can render an outer stAlertContainer around an inner stAlert
-# panel. Only the inner panel is painted, so feedback stays as one compact
-# notification card rather than a layered page-wide banner.
-ALERT_CSS = r"""
-/* AquaLoad feedback: compact, left-aligned and semantically coloured. */
-[data-testid="stAlertContainer"],
-[data-testid="stAlertContainer"][role="alert"]{
-  margin:0!important;padding:0!important;background:transparent!important;
-  border:0!important;border-radius:0!important;box-shadow:none!important;
+# Each palette entry is (surface, text, border, icon).
+LIGHT = {
+    "info": ("#EDF7FD", "#164B69", "#B6DCEF", "#17638A"),
+    "error": ("#FFF1F2", "#872D3A", "#F2BEC4", "#AC3443"),
+    "success": ("#EAF8F1", "#155D43", "#ADDDC4", "#19724F"),
+    "warning": ("#FFF8E8", "#76511A", "#EBD6A3", "#A06B1B"),
 }
-[data-testid="stAlert"],
-[data-testid="stAlertContainer"] [data-testid="stAlert"],
-[data-testid="stAlertContainer"] [role="alert"]{
-  margin:8px 0 14px!important;padding:0!important;
-  border-radius:10px!important;border-width:1px!important;border-style:solid!important;
-  overflow:hidden!important;box-shadow:none!important;opacity:1!important;
+DARK = {
+    "info": ("#142F40", "#D6ECF8", "#315D75", "#83CAE9"),
+    "error": ("#39252D", "#FFE0E4", "#87505D", "#F2A0A9"),
+    "success": ("#17392F", "#D5F7E8", "#35725D", "#7DDDB3"),
+    "warning": ("#403322", "#FFEBC7", "#8A6B39", "#F2C477"),
 }
-/* Successful completed action. */
-[data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]),
-[role="alert"]:has([data-testid="stAlertContentSuccess"]),
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) [data-testid="stAlert"],
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) [role="alert"]{background:var(--aq-alert-success-bg,#ecfdf5)!important;border-color:var(--aq-alert-success-border,#9cddc3)!important;color:var(--aq-alert-success-text,#075f46)!important}
-/* Informational guidance. */
-[data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]),
-[role="alert"]:has([data-testid="stAlertContentInfo"]),
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) [data-testid="stAlert"],
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) [role="alert"],
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) [role="alert"]{background:var(--aq-alert-info-bg,#eff8ff)!important;border-color:var(--aq-alert-info-border,#9bcceb)!important;color:var(--aq-alert-info-text,#075985)!important}
-/* Warnings remain distinct without using an oversized saturated panel. */
-[data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]),
-[role="alert"]:has([data-testid="stAlertContentWarning"]),
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) [data-testid="stAlert"],
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) [role="alert"]{background:var(--aq-alert-warning-bg,#fff8e8)!important;border-color:var(--aq-alert-warning-border,#ebcf87)!important;color:var(--aq-alert-warning-text,#805c00)!important}
-/* Validation and failed actions. */
-[data-testid="stAlert"]:has([data-testid="stAlertContentError"]),
-[role="alert"]:has([data-testid="stAlertContentError"]),
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) [data-testid="stAlert"],
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) [role="alert"]{background:var(--aq-alert-error-bg,#fff1f2)!important;border-color:var(--aq-alert-error-border,#f3a3ab)!important;color:var(--aq-alert-error-text,#9f1f2d)!important}
-[data-testid="stAlert"] *,
-[data-testid="stAlertContainer"] [data-testid="stAlert"] *,
-[data-testid="stAlertContainer"] [role="alert"] *{color:inherit!important;-webkit-text-fill-color:currentColor!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
-/* Streamlit has a wrapper div on some versions. Reset it first, then give
-   only the actual alert-content element one compact, deliberate padding. */
-[data-testid="stAlert"] > div:not([data-testid^="stAlertContent"]),
-[data-testid="stAlertContainer"] [role="alert"] > div:not([data-testid^="stAlertContent"]){padding:0!important;margin:0!important}
-[data-testid^="stAlertContent"]{
-  display:flex!important;align-items:flex-start!important;justify-content:flex-start!important;gap:10px!important;
-  padding:12px 15px!important;
-  text-align:left!important;
+
+# Inline masks use the icon colour from the active palette without a font download.
+ICON_PATHS = {
+    "info": "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M12 11v6 M12 7v.2",
+    "error": "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M8.5 8.5l7 7 M15.5 8.5l-7 7",
+    "success": "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M7 12l3.5 3.5L17 9",
+    "warning": "M11 3.5a1.2 1.2 0 0 1 2 0l9 16a1 1 0 0 1-1 1.5H3a1 1 0 0 1-1-1.5z M12 9v5 M12 17v.2",
 }
-[data-testid^="stAlertContent"] > div{min-width:0!important;text-align:left!important}
-[data-testid="stAlert"] p,
-[data-testid="stAlertContainer"] [data-testid="stAlert"] p,
-[data-testid="stAlertContainer"] [role="alert"] p{margin:0!important;font-size:.92rem!important;font-weight:600!important;line-height:1.5!important}
+
+
+def _tokens(palette):
+    declarations = [
+        f"--aq-{kind}-{part}:{colour};"
+        for kind, colours in palette.items()
+        for part, colour in zip(("surface", "ink", "line", "icon"), colours)
+    ]
+    return ":root{" + "".join(declarations) + "}"
+
+
+def _variants():
+    rules = []
+    for kind, path in ICON_PATHS.items():
+        panel = f'[data-testid="stAlertContainer"]:has([data-testid="stAlertContent{kind.title()}"])'
+        svg = (f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+               f"<path d='{path}' fill='none' stroke='black' stroke-width='1.8' "
+               "stroke-linecap='round' stroke-linejoin='round'/></svg>")
+        rules.append(f"{panel}, .aq-notice[data-kind={kind}] {{"
+                     f"--surface:var(--aq-{kind}-surface); --ink:var(--aq-{kind}-ink); "
+                     f"--line:var(--aq-{kind}-line); --icon:var(--aq-{kind}-icon); "
+                     f'--symbol:url("data:image/svg+xml,{svg}"); }}')
+    return "\n".join(rules)
+
+
+PANEL_CSS = """
+/* Streamlit puts role=status/alert on this inner panel. Leave the outer
+   stAlert element alone so its live-region semantics and spacing survive. */
+[data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]), .aq-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 78ch;
+    margin: 0;
+    padding: 15px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: none;
+    text-align: left;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+[data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]):not(:has([data-testid*="Icon"]))::before, .aq-notice::before {
+    content: "";
+    flex: 0 0 19px;
+    height: 19px;
+    margin-top: 2px;
+    background: var(--icon);
+    mask: var(--symbol) center / contain no-repeat;
+}
+[data-testid="stAlertContainer"] [data-testid^="stAlertContent"] {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    overflow-wrap: anywhere;
+}
+/* Streamlit offsets its final paragraph with a negative wrapper margin. */
+[data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] {
+    margin: 0;
+    min-width: 0;
+}
+/* Portal, dialog and public form text rules otherwise override inherited ink. */
+[data-testid="stAlert"] [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"],
+[data-testid="stAlert"] [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] :is(p, span, strong, em, li, code, a, pre) {
+    color: var(--ink) !important;
+    -webkit-text-fill-color: currentColor;
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+    text-align: left;
+}
+[data-testid="stAlert"] [data-testid="stAlertContainer"] p {
+    margin: 0;
+    font-weight: 400 !important;
+}
+[data-testid="stAlert"] [data-testid="stAlertContainer"] p + p { margin-top: .45em; }
+[data-testid="stAlert"] [data-testid="stAlertContainer"] a { text-decoration: underline; }
+[data-testid="stAlertContainer"] [data-testid*="Icon"] {
+    color: var(--icon) !important;
+    font-size: 19px;
+}
+[data-testid="stException"] [data-testid="stExceptionMessage"] :is(span, strong, code) {
+    color: var(--ink);
+}
+.st-key-empty_cart_state {
+    max-width: 42rem;
+    padding: 15px;
+    border: 1px solid var(--aq-border);
+    border-radius: 9px;
+    background: var(--aq-card2);
+}
+.st-key-empty_cart_state [data-testid="stCaptionContainer"] p {
+    color: var(--aq-muted);
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+}
 """
 
 
+def notification_css(preference="System"):
+    preference = (preference or "System").title()
+    tokens = _tokens(DARK if preference == "Dark" else LIGHT)
+    if preference == "System":
+        tokens += "@media (prefers-color-scheme: dark){" + _tokens(DARK) + "}"
+    return tokens + _variants() + PANEL_CSS
+
+
 def apply_alert_theme() -> None:
-    """Inject shared UI and alert styles for public pages without apply_theme."""
-    st.markdown(f"<style>{UI_FOUNDATION_CSS}{ALERT_CSS}</style>", unsafe_allow_html=True)
+    """Use the same notification styles on public and authenticated pages."""
+    css = notification_css(st.session_state.get("theme_preference", "System"))
+    st.markdown(f"<style>{UI_FOUNDATION_CSS}{css}</style>", unsafe_allow_html=True)

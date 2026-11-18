@@ -12,7 +12,7 @@ from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
 from components.navigation import staff_sidebar, require_staff
 from components.feedback import flash
-from services.collection_point_service import list_collection_points
+from services.collection_point_service import list_lorry_delivery_collection_points
 from services.lorry_service import is_valid_lorry_configuration, list_lorries
 from services.order_service import eligible_orders_for_optimization
 from services.optimization_service import (
@@ -45,9 +45,9 @@ page_header(
     "Core Optimization",
 )
 
-points = list_collection_points("Available")
+points = list_lorry_delivery_collection_points("Available")
 if not points:
-    st.error("No available collection points are configured.")
+    st.error("No lorry-delivery collection points are currently available.")
     st.stop()
 
 st.markdown("## Step 1 — Select Collection Point")
@@ -295,4 +295,4 @@ if result and result.get("ui_signature") == current_signature:
                     flash("success", msg)
                     st.switch_page("pages/loading_visualization.py")
                 else:
-                    st.error(msg, icon="⚠️")
+                    st.error(msg)

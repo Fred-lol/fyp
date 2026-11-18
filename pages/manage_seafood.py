@@ -65,7 +65,7 @@ def _show_feedback(message_key):
 
 def _field_feedback(errors, field, helper):
     if message := errors.get(field):
-        st.error(message, icon="⚠️")
+        st.error(message)
     else:
         st.caption(helper)
 
@@ -273,7 +273,7 @@ def _show_edit_dialog(product):
     _field_feedback(errors, "description", "Optional. Add handling, freshness, or preparation details (maximum 500 characters).")
     st.text_input("Stock update note (optional)", placeholder="Example: Physical stock count", key=f"edit_seafood_stock_note_{product_id}")
     if errors.get("form"):
-        st.error(errors["form"], icon="⚠️")
+        st.error(errors["form"])
     st.button("Save seafood changes", type="primary", use_container_width=True, on_click=_save_seafood_update, args=(product,))
 
 
@@ -376,7 +376,7 @@ with tab_add:
             st.text_area("Description (optional)", placeholder="Example: Fresh local mackerel, suitable for grilling or curry.", max_chars=500, key="new_seafood_description")
             _field_feedback(errors, "description", "Optional. Add handling, freshness, or preparation details (maximum 500 characters).")
             if errors.get("form"):
-                st.error(errors["form"], icon="⚠️")
+                st.error(errors["form"])
             submitted = st.form_submit_button("Add seafood", type="primary", use_container_width=True)
 
     # Run after the form has submitted. clear_on_submit resets the browser-held

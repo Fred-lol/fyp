@@ -16,9 +16,10 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from bootstrap import bootstrap_app
+from components.alert_theme import notification_css
 from components.navigation import require_staff, staff_sidebar
 from components.theme import apply_theme, page_header
-from services.collection_point_service import list_collection_points
+from services.collection_point_service import list_lorry_delivery_collection_points
 from services.lorry_service import list_lorries
 
 
@@ -181,10 +182,11 @@ def _render_live_map(lorry, location, destination, simulation):
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
         <style>
+          {notification_css(st.session_state.get("theme_preference", "System"))}
           html,body,#map{{height:100%;margin:0;font-family:Inter,Segoe UI,Arial,sans-serif}}
           #map{{height:460px;border-radius:14px;overflow:hidden;border:1px solid #315363}}
           .legend{{position:absolute;z-index:1000;bottom:18px;left:14px;background:#ffffffed;color:#123b57;padding:10px 12px;border-radius:10px;font-size:13px;line-height:1.7;box-shadow:0 4px 18px #0003}}
-          #progress{{font-weight:800;color:#063b63;margin-top:7px;padding-top:7px;border-top:1px solid #cadde3}}
+          #progress:not(.aq-notice){{font-weight:800;color:#063b63;margin-top:7px;padding-top:7px;border-top:1px solid #cadde3}}
           .dot{{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}} .depart{{background:#0f9d9a}} .lorry{{background:#dc3545}} .destination{{background:#f39c12}}
         </style>
         <div id="map"></div><div class="legend"><div><span class="dot depart"></span>Departure: LKIM Kuala Perlis</div><div><span class="dot lorry"></span>Current lorry position</div><div><span class="dot destination"></span>Destination</div><div id="progress">Simulation progress: 0%</div></div>
@@ -208,12 +210,17 @@ def _render_live_map(lorry, location, destination, simulation):
           }}
           let lastSaved=0, arrivalSent=false;
           const progressLabel=document.getElementById('progress');
+          function showArrival(kind, text) {{
+            progressLabel.className = 'aq-notice';
+            progressLabel.dataset.kind = kind;
+            progressLabel.textContent = text;
+          }}
           function finishTrip() {{
             if(arrivalSent) return; arrivalSent=true;
             fetch(config.apiBase+'/api/lorry/'+config.lorryId+'/arrive',{{method:'POST'}})
               .then(response=>response.json())
-              .then(data=>{{progressLabel.textContent=data.success ? 'Arrived — lorry is now Available' : 'Arrived — status update failed';}})
-              .catch(()=>{{progressLabel.textContent='Arrived — unable to update lorry status';}});
+              .then(data=>showArrival(data.success ? 'success' : 'error', data.success ? 'Arrived — lorry is now Available' : 'Arrived — status update failed'))
+              .catch(()=>showArrival('error', 'Arrived — unable to update lorry status'));
           }}
           function animate() {{
             if(config.running){{
@@ -254,7 +261,7 @@ lorry_by_id = {int(lorry["lorry_id"]): lorry for lorry in active_lorries}
 selected_lorry_id = st.selectbox("Active lorry", list(lorry_by_id), format_func=lambda lorry_id: f"{lorry_by_id[lorry_id]['plate_number']} — In Transit")
 selected_lorry = lorry_by_id[selected_lorry_id]
 
-points = [point for point in list_collection_points("Available") if point["point_name"] != LKIM_KUALA_PERLIS["name"]]
+points = list_lorry_delivery_collection_points("Available")
 if not points:
     st.error("No destination collection point is available for simulation.")
     st.stop()

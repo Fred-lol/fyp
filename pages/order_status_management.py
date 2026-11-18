@@ -60,7 +60,7 @@ with left:
                     flash("success", msg)
                     st.rerun()
                 else:
-                    st.error(msg, icon="⚠️")
+                    st.error(msg)
         else:
             st.info("This order has reached a final status.")
 

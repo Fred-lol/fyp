@@ -1,4 +1,6 @@
 from itertools import product as cartesian_product
+from contextlib import nullcontext
+from math import isfinite
 from math import ceil
 
 from database.db import db_session
@@ -62,7 +64,7 @@ def _customer(conn, customer_id):
     return conn.execute("SELECT * FROM users WHERE user_id=?", (customer_id,)).fetchone()
 
 
-def place_order(customer_id, items, collection_point_id=None):
+def place_order(customer_id, items, collection_point_id=None, *, _connection=None):
     """Create a Pending order with a chosen collection point and reserve stock.
 
     ``collection_point_id`` is optional only for older internal callers such
@@ -71,7 +73,12 @@ def place_order(customer_id, items, collection_point_id=None):
     initialize_schema()
     requested = {}
     for product_id, quantity in items:
-        quantity = float(quantity)
+        try:
+            quantity = float(quantity)
+        except (TypeError, ValueError):
+            return False, "Enter a valid seafood quantity.", None
+        if not isfinite(quantity) or quantity <= 0:
+            return False, "Seafood quantities must be positive finite numbers.", None
         if quantity > 0:
             product_id = int(product_id)
             requested[product_id] = requested.get(product_id, 0.0) + quantity
@@ -88,7 +95,7 @@ def place_order(customer_id, items, collection_point_id=None):
         except (TypeError, ValueError):
             return False, "Select an available collection point before payment.", None
 
-    with db_session() as conn:
+    with (nullcontext(_connection) if _connection is not None else db_session()) as conn:
         customer = _customer(conn, customer_id)
         if not customer or customer["role"] != "Customer" or customer["status"] != "Active":
             return False, "Customer account was not found.", None
@@ -101,7 +108,7 @@ def place_order(customer_id, items, collection_point_id=None):
         available = {
             r["product_id"]: r
             for r in conn.execute(
-                f"SELECT * FROM seafood_products WHERE product_id IN ({placeholders}) FOR UPDATE",
+                f"SELECT * FROM seafood_products WHERE product_id IN ({placeholders}) ORDER BY product_id FOR UPDATE",
                 product_ids,
             ).fetchall()
         }
@@ -295,7 +302,7 @@ def update_customer_order(order_id, customer_id, quantities):
         return False, "Order not found."
     if order["status"] not in EDITABLE_ORDER_STATUSES:
         return False, "This order can no longer be updated."
-    if (order.get("payment") or {}).get("payment_status") == "Paid":
+    if (order.get("payment") or {}).get("payment_status") in {"Paid", "Simulated"}:
         return False, "Paid orders are locked. You may cancel before the seafood is loaded for delivery."
 
     current = {item["order_item_id"]: item for item in order["items"]}
@@ -387,7 +394,7 @@ def cancel_order(order_id, customer_id):
             """,
             (order_id,),
         )
-        conn.execute("UPDATE payments SET payment_status='Refunded' WHERE order_id=? AND payment_status='Paid'", (order_id,))
+        conn.execute("UPDATE payments SET payment_status=CASE WHEN payment_status='Simulated' THEN 'Demo Cancelled' ELSE 'Refunded' END WHERE order_id=? AND payment_status IN ('Paid','Simulated')", (order_id,))
         conn.execute(
             "INSERT INTO order_status_history(order_id,status,updated_by,note) VALUES(?,?,?,?)",
             (order_id, "Cancelled", customer_id, "Order cancelled by Customer."),
@@ -536,7 +543,7 @@ def update_order_status(order_id, new_status, updated_by, note=""):
             return True, "Order confirmed and automatically marked Ready for Loading."
         if new_status == "Cancelled":
             _restore_order_stock(conn, order_id, updated_by, "Staff Cancellation")
-            conn.execute("UPDATE payments SET payment_status='Refunded' WHERE order_id=? AND payment_status='Paid'", (order_id,))
+            conn.execute("UPDATE payments SET payment_status=CASE WHEN payment_status='Simulated' THEN 'Demo Cancelled' ELSE 'Refunded' END WHERE order_id=? AND payment_status IN ('Paid','Simulated')", (order_id,))
         conn.execute(
             """
             UPDATE seafood_orders

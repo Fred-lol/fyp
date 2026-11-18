@@ -3,7 +3,7 @@ import re
 
 from database.db import db_session
 from database.schema import initialize_schema
-from services.order_service import list_products, place_order
+from services.order_service import place_order
 
 
 PAYMENT_METHODS = [
@@ -13,6 +13,8 @@ PAYMENT_METHODS = [
     "E-Wallet",
 ]
 
+# Configurable demo subset of PayNet FPX participating banks (verified 19 Nov 2026).
+# https://knowledgebase.paynet.my/hc/en-us/articles/49685463748121-Which-banks-participate-in-FPX
 MALAYSIAN_BANKS = [
     "Maybank2u", "CIMB Clicks", "Public Bank", "RHB", "Hong Leong Connect",
     "Bank Islam", "AmBank", "Bank Rakyat", "BSN", "UOB Malaysia",
@@ -22,106 +24,31 @@ MALAYSIAN_EWALLETS = [
 ]
 
 
-def _valid_luhn(number):
-    total = 0
-    for index, digit in enumerate(reversed(number)):
-        value = int(digit)
-        if index % 2:
-            value *= 2
-            if value > 9:
-                value -= 9
-        total += value
-    return total % 10 == 0
-
-
 def _valid_malaysian_mobile(value):
-    digits = re.sub(r"[\s-]", "", str(value or ""))
-    return bool(re.fullmatch(r"(?:\+?60|0)1\d{7,9}", digits))
-
-
-def _malaysian_card_format_error(digits):
-    """Validate card schemes commonly issued by Malaysian retail banks."""
-    if digits.startswith(("34", "37")):
-        if len(digits) != 15:
-            return "American Express card numbers must contain 15 digits."
-        return None
-    if digits.startswith("4") or re.fullmatch(r"5[1-5]\d*|2(?:2[2-9]\d*|[3-6]\d*|7(?:[01]\d*|2[0-1]\d*))", digits):
-        if len(digits) != 16:
-            return "Visa and Mastercard numbers must contain 16 digits."
-        return None
-    return "Use a Visa, Mastercard, or American Express card issued by your bank."
+    """MCMC national mobile formats: 011 + 8 digits, other mobile prefixes + 7."""
+    number = re.sub(r"[\s-]", "", str(value or ""))
+    if number.startswith("+60"):
+        number = "0" + number[3:]
+    elif number.startswith("60"):
+        number = "0" + number[2:]
+    return bool(re.fullmatch(r"(?:011[0-9]{8}|01[02346789][0-9]{7})", number))
 
 
 def validate_payment_details(payment_method, details):
-    """Validate demo-only details; no payment credentials are persisted."""
+    """Only non-sensitive demo selections are accepted. Never request credentials."""
     details = details or {}
     errors = {}
     if payment_method not in PAYMENT_METHODS:
-        return {"form": "Choose a valid payment method."}
-
-    if payment_method == "Credit / Debit Card":
-        name = str(details.get("card_name") or "").strip()
-        card_number = str(details.get("card_number") or "").strip()
-        digits = re.sub(r"\D", "", card_number)
-        expiry = str(details.get("expiry") or "").strip()
-        cvv = str(details.get("cvv") or "").strip()
-        if not name:
-            errors["card_name"] = "Cardholder name is required."
-        elif len(name) < 2 or not re.search(r"[A-Za-z]", name):
-            errors["card_name"] = "Use at least 2 letters for the cardholder name."
-        if not card_number:
-            errors["card_number"] = "Card number is required."
-        elif not re.fullmatch(r"[\d\s-]+", card_number):
-            errors["card_number"] = "Card number can contain digits only."
-        elif format_error := _malaysian_card_format_error(digits):
-            errors["card_number"] = format_error
-        elif not _valid_luhn(digits):
-            errors["card_number"] = "Check the card number and try again."
-        format_match = re.fullmatch(r"(\d{2})/(\d{2})", expiry)
-        if not expiry:
-            errors["expiry"] = "Expiry date is required."
-        elif not format_match:
-            errors["expiry"] = "Expiry date must use MM/YY, for example 11/27."
-        else:
-            expiry_month = int(format_match.group(1))
-            if not 1 <= expiry_month <= 12:
-                errors["expiry"] = "Expiry month must be between 01 and 12."
-            else:
-                expiry_year = 2000 + int(format_match.group(2))
-                now = datetime.now()
-                if (expiry_year, expiry_month) < (now.year, now.month):
-                    errors["expiry"] = "This card has expired. Use a current card."
-        if not cvv:
-            errors["cvv"] = "CVV is required."
-        elif not re.fullmatch(r"\d{3,4}", cvv):
-            errors["cvv"] = "CVV must be 3 or 4 digits."
-
-    elif payment_method == "Online Banking (FPX)":
-        if not details.get("bank"):
-            errors["bank"] = "Choose your bank to continue."
-        elif details.get("bank") not in MALAYSIAN_BANKS:
-            errors["bank"] = "Choose a supported Malaysian bank."
-        name = str(details.get("account_name") or "").strip()
-        if not name:
-            errors["account_name"] = "Account holder name is required."
-        elif len(name) < 2 or not re.search(r"[A-Za-z]", name):
-            errors["account_name"] = "Use at least 2 letters for the account holder name."
-
-    elif payment_method == "DuitNow QR":
-        if not str(details.get("mobile") or "").strip():
-            errors["mobile"] = "DuitNow mobile number is required."
-        elif not _valid_malaysian_mobile(details.get("mobile")):
-            errors["mobile"] = "Enter a Malaysian mobile number, for example 0123456789."
-
-    elif payment_method == "E-Wallet":
-        if not details.get("wallet"):
-            errors["wallet"] = "Choose an e-wallet to continue."
-        elif details.get("wallet") not in MALAYSIAN_EWALLETS:
-            errors["wallet"] = "Choose a supported Malaysian e-wallet."
-        if not str(details.get("mobile") or "").strip():
-            errors["mobile"] = "Mobile number linked to the e-wallet is required."
-        elif not _valid_malaysian_mobile(details.get("mobile")):
-            errors["mobile"] = "Enter a valid Malaysian mobile number for this e-wallet."
+        return {"method": "Select a demo payment method."}
+    if payment_method == "Online Banking (FPX)" and details.get("bank") not in MALAYSIAN_BANKS:
+        errors["bank"] = "Select a supported Malaysian bank."
+    if payment_method == "E-Wallet":
+        if details.get("wallet") not in MALAYSIAN_EWALLETS:
+            errors["wallet"] = "Select a supported e-wallet provider."
+        if not _valid_malaysian_mobile(details.get("mobile")):
+            errors["mobile"] = "Enter a Malaysian mobile number: 0123456789 or 01112345678. +60 format is also accepted."
+    if details.get("demo_confirmed") is not True:
+        errors["demo_confirmed"] = "Confirm the demo step to continue. No money will be charged."
     return errors
 
 
@@ -129,7 +56,14 @@ def checkout_summary(items):
     """Build a checkout summary from current seafood data without charging anything."""
     initialize_schema()
     clean = [(int(pid), float(qty)) for pid, qty in items if float(qty) > 0]
-    product_map = {p["product_id"]: p for p in list_products(availability="All")}
+    ids = list({pid for pid, _ in clean})
+    if not ids:
+        return {"items": [], "total_weight_kg": 0, "total_amount": 0}
+    with db_session() as conn:
+        products = conn.execute(
+            "SELECT product_id,product_name,unit,unit_price,stock_quantity,availability_status FROM seafood_products WHERE product_id IN (" + ",".join("?" for _ in ids) + ")", ids,
+        ).fetchall()
+    product_map = {p["product_id"]: p for p in products}
     lines = []
     total_weight = 0.0
     total_amount = 0.0
@@ -163,46 +97,42 @@ def checkout_summary(items):
     }
 
 
-def complete_demo_payment(customer_id, items, payment_method, payment_details=None, collection_point_id=None):
-    """Simulate a successful payment, then create the AquaLoad Pending order.
+def complete_demo_payment(customer_id, items, payment_method, payment_details=None, collection_point_id=None, *, submission_key=None):
+    """Atomically reserve stock and record a simulated payment, once per checkout.
 
-    No external payment gateway is called and no card/bank credentials are stored.
+    Advisory locking serializes duplicate requests across processes. The unique
+    transaction reference persists the result so retries return the same order.
+    No financial credentials or mobile numbers are persisted.
     """
-    if payment_method not in PAYMENT_METHODS:
-        return False, "Please select a valid payment method.", None
+    from uuid import UUID
+    from hashlib import sha256
     if errors := validate_payment_details(payment_method, payment_details):
         return False, next(iter(errors.values())), None
     if collection_point_id is None:
-        return False, "Choose a collection point before payment.", None
-
-    summary = checkout_summary(items)
-    if not summary["items"]:
-        return False, "Your checkout is empty.", None
-
-    ok, message, order_id = place_order(customer_id, items, collection_point_id=collection_point_id)
-    if not ok:
-        return False, message, None
-
-    reference = f"AQPAY-{datetime.now().strftime('%Y%m%d%H%M%S')}-{order_id}"
+        return False, "Choose an available collection point.", None
+    try:
+        token = str(UUID(str(submission_key)))
+    except (ValueError, TypeError):
+        return False, "This checkout has expired. Return to your cart and try again.", None
+    reference = f"AQDEMO-{customer_id}-{token}"
+    lock_id = int.from_bytes(sha256(reference.encode()).digest()[:8], 'big', signed=True)
+    initialize_schema()
     with db_session() as conn:
-        conn.execute(
-            """
-            INSERT INTO payments(
-                order_id, customer_id, amount, payment_method,
-                payment_status, transaction_reference
-            ) VALUES(?,?,?,?,?,?)
-            """,
-            (
-                order_id,
-                customer_id,
-                float(summary["total_amount"]),
-                payment_method,
-                "Paid",
-                reference,
-            ),
-        )
-
-    return True, "Payment successful and order placed.", order_id
+        conn.execute("SELECT pg_advisory_xact_lock(?)", (lock_id,))
+        existing = conn.execute("SELECT order_id FROM payments WHERE transaction_reference=? AND customer_id=?", (reference, customer_id)).fetchone()
+        if existing:
+            return True, "This demo order was already submitted. No duplicate was created.", existing['order_id']
+        ok, message, order_id = place_order(customer_id, items, collection_point_id=collection_point_id, _connection=conn)
+        if not ok:
+            return False, message, None
+        # Products remain locked by place_order; use authoritative prices in the
+        # same transaction rather than a potentially stale browser summary.
+        amount = conn.execute("""SELECT COALESCE(SUM(oi.quantity * p.unit_price),0) AS amount
+            FROM order_items oi JOIN seafood_products p ON p.product_id=oi.product_id
+            WHERE oi.order_id=?""", (order_id,)).fetchone()['amount']
+        conn.execute("""INSERT INTO payments(order_id,customer_id,amount,payment_method,payment_status,transaction_reference)
+            VALUES(?,?,?,?,?,?)""", (order_id, customer_id, round(float(amount), 2), payment_method, "Simulated", reference))
+    return True, "Demo order submitted successfully. No money was charged.", order_id
 
 
 def get_payment(order_id):

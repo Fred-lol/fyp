@@ -6,6 +6,10 @@ set -euo pipefail
 export AQUALOAD_TRACKING_API="http://127.0.0.1:8000"
 export AQUALOAD_MANAGED_TRACKING_API="1"
 
+# Finish schema setup once before either worker can serve a request.
+python -c 'from database.schema import initialize_schema; initialize_schema()'
+export AQUALOAD_SCHEMA_PREPARED=1
+
 python -m uvicorn tracking_api:app --host 127.0.0.1 --port 8000 &
 tracking_pid=$!
 

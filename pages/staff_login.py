@@ -44,4 +44,4 @@ with first:
 with second:
     st.link_button("Back to homepage", "/", use_container_width=True)
 
-st.html('<div class="aq-login-help">Staff accounts are issued by authorised AquaLoad administration. Public staff registration is not available.</div>')
+st.info("Staff accounts are issued by authorised AquaLoad administration. Public staff registration is not available.")

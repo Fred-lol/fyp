@@ -52,7 +52,7 @@ for o in orders:
             if history.get("note"):
                 st.write(history["note"])
         st.write("**Seafood Items**")
-        is_paid = payment.get("payment_status") == "Paid"
+        is_paid = payment.get("payment_status") in {"Paid", "Simulated"}
         can_edit = detail["status"] in EDITABLE_ORDER_STATUSES and not is_paid
         can_cancel = detail["status"] in CANCELLABLE_ORDER_STATUSES
         quantities = {}
@@ -76,7 +76,7 @@ for o in orders:
                         flash("success", msg)
                         st.rerun()
                     else:
-                        st.error(msg, icon="⚠️")
+                        st.error(msg)
             track_column = action_columns[1]
             confirm_column = action_columns[2] if can_cancel else None
             cancel_column = action_columns[3] if can_cancel else None
@@ -101,4 +101,4 @@ for o in orders:
                         flash("success", msg)
                         st.rerun()
                     else:
-                        st.error(msg, icon="⚠️")
+                        st.error(msg)

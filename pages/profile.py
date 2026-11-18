@@ -18,6 +18,8 @@ from services.location_service import cities_for_state, postcodes_for_city
 
 bootstrap_app()
 st.set_page_config(page_title="My Profile | AquaLoad", page_icon="👤", layout="wide")
+if not st.session_state.get("logged_in") or not st.session_state.get("user_id"):
+    apply_theme()
 require_login()
 user = get_user(st.session_state.user_id)
 if user and user.get("theme_preference") and "theme_preference" not in st.session_state:
@@ -116,14 +118,7 @@ def _cancel_profile_edit() -> None:
 
 
 def _show_feedback(ok: bool, message: str) -> None:
-    """Use an AquaLoad-controlled notice with guaranteed contrast."""
-    background = "#075e5b" if ok else "#861f32"
-    st.html(
-        f'<div style="margin-top:14px;padding:17px 20px;border-radius:10px;'
-        f'background:{background};border:1px solid rgba(255,255,255,.25);'
-        f'color:#ffffff!important;font-size:15px;font-weight:650;line-height:1.55">'
-        f'{html.escape(message)}</div>'
-    )
+    (st.success if ok else st.error)(message)
 
 
 def _profile_value(label: str, value: str) -> None:

@@ -1,3 +1,7 @@
+from datetime import datetime, timedelta, timezone
+
+from psycopg.errors import DeadlockDetected
+
 from database.db import db_session
 from services.lorry_service import get_lorry
 from optimization.optimizer import generate_plan
@@ -220,6 +224,18 @@ def save_optimization(result, created_by, mark_loaded=False):
     return True, message, plan_id
 
 
+def plan_is_current(created_at, now=None):
+    """The saved plan remains visible through its 30-day anniversary."""
+    now = now or datetime.now(timezone.utc)
+    return created_at >= now - timedelta(days=30)
+
+
+def saved_weight_utilization(plan):
+    loaded = float(plan["total_weight"])
+    capacity = loaded + float(plan["remaining_weight_capacity"])
+    return 100 * loaded / capacity if capacity > 0 else 0.0
+
+
 def list_plans(limit=None):
     sql = """
         SELECT p.*, l.plate_number, u.full_name created_by_name,
@@ -236,10 +252,21 @@ def list_plans(limit=None):
         sql += " LIMIT ?"
         params = (limit,)
     with db_session() as conn:
-        return [dict(r) for r in conn.execute(sql, params).fetchall()]
+        rows = conn.execute(sql, params).fetchall()
+    now = datetime.now(timezone.utc)
+    return [dict(row) for row in rows if plan_is_current(row["created_at"], now)]
 
 
 def get_plan(plan_id):
+    # PostgreSQL rolls back the deadlock victim. Restart this read in a fresh
+    # transaction so a concurrent deployment need not interrupt the report.
+    try:
+        return _read_plan(plan_id)
+    except DeadlockDetected:
+        return _read_plan(plan_id)
+
+
+def _read_plan(plan_id):
     with db_session() as conn:
         plan = conn.execute(
             """
@@ -254,7 +281,7 @@ def get_plan(plan_id):
             """,
             (plan_id,),
         ).fetchone()
-        if not plan:
+        if not plan or not plan_is_current(plan["created_at"]):
             return None
         placements = conn.execute(
             """

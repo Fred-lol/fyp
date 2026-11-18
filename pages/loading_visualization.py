@@ -13,8 +13,9 @@ if str(PROJECT_DIR) not in sys.path:
 from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
 from components.navigation import staff_sidebar, require_staff
+from components.alert_theme import notification_css
 from components.feedback import flash
-from services.optimization_service import list_plans, get_plan, save_optimization
+from services.optimization_service import list_plans, get_plan, save_optimization, saved_weight_utilization
 
 
 def _preview_as_plan(result):
@@ -70,6 +71,10 @@ plan_id = st.selectbox(
 st.session_state.selected_plan_id = plan_id
 plan = _preview_as_plan(preview_result) if is_preview else get_plan(plan_id)
 
+if not plan:
+    st.info("This loading plan is no longer in the current 30-day view.")
+    st.stop()
+
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Plan", "3D Preview" if is_preview else f"#{plan['plan_id']}")
 c2.metric("Lorry", plan["plate_number"])
@@ -113,6 +118,7 @@ three_html = f"""
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
+{notification_css(st.session_state.get("theme_preference", "System"))}
 html,body,#viewer{{margin:0;width:100%;height:100%;overflow:hidden;font-family:Inter,Segoe UI,Arial,sans-serif}}
 #viewer{{position:relative;background:#071f32}}
 .panel{{position:absolute;z-index:5;background:rgba(3,28,53,.90);color:#eefbfc;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.55;backdrop-filter:blur(8px)}}
@@ -121,7 +127,7 @@ html,body,#viewer{{margin:0;width:100%;height:100%;overflow:hidden;font-family:I
 #sequence{{position:absolute;z-index:6;right:16px;bottom:16px;display:flex;align-items:center;gap:6px;background:rgba(3,28,53,.90);padding:8px;border-radius:12px;border:1px solid rgba(255,255,255,.10)}}
 button{{border:1px solid rgba(255,255,255,.16);background:#fff;color:#073c5c;border-radius:8px;padding:8px 10px;font-weight:700;cursor:pointer}}button:hover{{background:#eaf8f8}}
 #stepLabel{{color:#fff;min-width:76px;text-align:center;font-size:12px;font-weight:700}}
-.dot{{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:middle}}.muted{{color:#a9c2cf}}.error{{color:#ffd5cc}}
+.dot{{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:middle}}.muted{{color:#a9c2cf}}
 .world-label{{padding:5px 8px;border-radius:7px;font-size:11px;font-weight:800;letter-spacing:.04em;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35)}}
 .world-label.gate{{background:rgba(255,162,77,.95);color:#311605}}.world-label.deep{{background:rgba(103,230,225,.95);color:#032633}}
 canvas{{display:block}}
@@ -270,7 +276,12 @@ try {{
   window.addEventListener('resize',()=>{{camera.aspect=viewer.clientWidth/viewer.clientHeight;camera.updateProjectionMatrix();renderer.setSize(viewer.clientWidth,viewer.clientHeight);labelRenderer.setSize(viewer.clientWidth,viewer.clientHeight)}});
 }} catch(err) {{
   console.error(err);
-  selectedPanel.innerHTML='<span class="error"><strong>Three.js could not start.</strong><br>'+String(err)+'</span><br><span class="muted">Check browser Internet/CDN access. The saved loading-sequence table below remains the source of truth.</span>';
+  const message = document.createElement('div');
+  message.className = 'aq-notice';
+  message.dataset.kind = 'error';
+  message.setAttribute('role', 'alert');
+  message.textContent = 'Three.js could not start. ' + String(err) + '. Check the browser connection. You can still use the saved loading sequence below.';
+  selectedPanel.replaceChildren(message);
 }}
 }}
 start();
@@ -304,12 +315,7 @@ if is_preview:
 
 st.markdown("## Loading Summary")
 s1, s2, s3, s4 = st.columns(4)
-maximum_weight = float(plan["total_weight"]) + float(plan["remaining_weight_capacity"])
-weight_capacity_used = (
-    float(plan["total_weight"]) / maximum_weight * 100
-    if maximum_weight > 0
-    else 0.0
-)
+weight_capacity_used = saved_weight_utilization(plan)
 s1.metric("Weight Capacity Used", f"{weight_capacity_used:.1f}%")
 s2.metric("Loaded Weight", f"{float(plan['total_weight']):,.1f} kg")
 s3.metric("Remaining Weight", f"{float(plan['remaining_weight_capacity']):,.1f} kg")

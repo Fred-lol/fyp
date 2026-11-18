@@ -89,6 +89,17 @@ def is_local_kuala_perlis_pickup(customer, collection_point):
     return point_state == "Perlis"
 
 
+def is_lorry_delivery_collection_point(collection_point):
+    """Return whether the point belongs in lorry planning and tracking.
+
+    AquaLoad's Perlis points are customer self-pickup locations served from
+    the Kuala Perlis base, so they must stay outside every lorry workflow.
+    """
+    point_state = (collection_point.get("state") or "").strip()
+    point_name = (collection_point.get("point_name") or "").strip()
+    return point_state != "Perlis" and point_name != PRIMARY_COLLECTION_POINT_NAME
+
+
 def is_lorry_delivery_supported(customer):
     state = (customer.get("state") or "").strip()
     city = (customer.get("city") or "").strip().lower()
@@ -164,6 +175,15 @@ def list_collection_points(status="Available", state=None):
     params.append(PRIMARY_COLLECTION_POINT_NAME)
     with db_session() as conn:
         return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+
+def list_lorry_delivery_collection_points(status="Available"):
+    """List collection points that require road-lorry delivery."""
+    return [
+        point
+        for point in list_collection_points(status)
+        if is_lorry_delivery_collection_point(point)
+    ]
 
 
 def get_collection_point(collection_point_id):

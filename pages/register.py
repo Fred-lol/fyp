@@ -501,51 +501,6 @@ button[kind="primary"]:hover {
 
 
 /* ============================================================
-   CUSTOMER REGISTRATION NOTE
-============================================================ */
-
-.aq-customer-note {
-
-    max-width: 620px;
-
-    margin:
-        17px auto 0;
-
-    padding:
-        12px 15px;
-
-    border:
-        1px solid
-        #d5e7e8;
-
-    border-radius:
-        11px;
-
-    color:
-        #607985;
-
-    background:
-        #eef8f8;
-
-    font-size:
-        11px;
-
-    line-height:
-        1.6;
-
-    text-align:
-        center;
-}
-
-
-.aq-customer-note strong {
-
-    color:
-        #28576c;
-}
-
-
-/* ============================================================
    FOOTER
 ============================================================ */
 
@@ -942,20 +897,7 @@ st.html(
 # CUSTOMER REGISTRATION NOTE
 # ============================================================
 
-st.html(
-    """
-<div class="aq-customer-note">
-
-    <strong>
-        Customer registration only.
-    </strong>
-
-    AquaLoad staff accounts are created and
-    managed separately by authorized personnel.
-
-</div>
-"""
-)
+st.info("**Customer registration only.** AquaLoad staff accounts are created and managed separately by authorized personnel.")
 
 
 # ============================================================

@@ -20,7 +20,7 @@ order_id = st.session_state.get("last_paid_order_id")
 order = get_order(order_id, st.session_state.user_id) if order_id else None
 
 page_header(
-    "Payment Successful",
+    "Demo Order Submitted",
     "Your seafood order has been placed and is now waiting for Staff review.",
     "Order Confirmation",
 )
@@ -31,13 +31,14 @@ if not order:
         st.switch_page("pages/my_orders.py")
     st.stop()
 
+st.success("Demo order submitted successfully. No money was charged.")
 payment = order.get("payment") or {}
 with st.container(border=True):
     st.markdown("## ✓ Order Placed Successfully")
     a, b, c, d = st.columns(4)
     a.metric("Order", f"#{order['order_id']}")
-    b.metric("Amount Paid", f"RM {float(payment.get('amount') or order.get('total_amount') or 0):,.2f}")
-    c.metric("Payment", payment.get("payment_status") or "Paid")
+    b.metric("Demo order total", f"RM {float(payment.get('amount') or order.get('total_amount') or 0):,.2f}")
+    c.metric("Payment", payment.get("payment_status") or "Simulated")
     d.metric("Order Status", order["status"])
 
     st.divider()

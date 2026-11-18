@@ -1,8 +1,9 @@
 import sys
-from html import escape
+from collections import Counter
+from psycopg.errors import DeadlockDetected
 from pathlib import Path
 
-import altair as alt
+from components.charts import capacity_chart, bar_chart, render_chart, BLUE
 import pandas as pd
 import streamlit as st
 
@@ -14,48 +15,29 @@ from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
 from components.navigation import staff_sidebar, require_staff
 from components.display import friendly_datetime
-from services.optimization_service import list_plans
+from services.optimization_service import get_plan, list_plans, saved_weight_utilization
 from services.report_service import generate_report, list_reports, get_report, report_csv_bytes
-from services.analytics_service import (
-    analytics_summary,
-    utilization_series,
-    plans_by_lorry,
-    box_usage,
-    plans_by_collection_point,
-)
 
 bootstrap_app()
-
-def aqua_chart(chart):
-    """Apply accessible AquaLoad chart styling in light and dark appearances."""
-    dark = str(st.session_state.get("theme_preference", "System")).lower() == "dark"
-    text = "#f5fbfd" if dark else "#123b57"
-    muted = "#bfd0d9" if dark else "#617b8d"
-    grid = "#315363" if dark else "#d7e6ec"
-    return chart.configure_view(stroke=None, fill="transparent").configure_axis(
-        labelColor=text, titleColor=text, domainColor=grid, tickColor=grid,
-        gridColor=grid, labelFontSize=12, titleFontSize=12,
-    ).configure_legend(labelColor=text, titleColor=text).configure_title(
-        color=text, fontSize=16, fontWeight=700, anchor="start"
-    ).configure_range(
-        category=["#00aeb7", "#087ab0", "#d8a441", "#df7055"]
-    )
 
 st.set_page_config(page_title="Reports & Analytics | AquaLoad", page_icon="📊", layout="wide")
 apply_theme(); staff_sidebar(); require_staff()
 page_header(
     "Loading Reports & Analytics",
-    "Understand what happened in each saved loading plan and compare useful loading performance across operations.",
+    "Review loading plans saved in the past 30 days and compare lorry capacity use.",
     "Operational Insight",
 )
 
-report_tab, analytics_tab = st.tabs(["Loading Reports", "Analytics"])
+@st.cache_data(ttl=300, show_spinner=False)
+def plan_box_counts(plan_id):
+    plan = get_plan(plan_id)
+    return Counter(p["box_name"] for p in plan["placements"]) if plan else Counter()
 
-with report_tab:
+
+def render_reports(plans):
     st.header("Generate Loading Report", anchor=False)
-    plans = list_plans()
     if not plans:
-        st.info("No saved loading plans are available yet.")
+        st.info("No loading plans were saved in the past 30 days.")
     else:
         plan_map = {
             f"Plan #{p['plan_id']} · {p['plate_number']} · {p.get('collection_point') or 'No collection point'}": p
@@ -69,9 +51,15 @@ with report_tab:
             if ok:
                 st.session_state.selected_report_id = report_id
 
-    reports = list_reports()
+    current_ids = {plan["plan_id"] for plan in plans}
+    reports = [report for report in list_reports() if report["plan_id"] in current_ids]
     if reports:
         st.header("Recent Loading Reports", anchor=False)
+        report_search = st.text_input("Find a report", placeholder="Lorry or collection point")
+        reports = [r for r in reports if report_search.casefold() in f"{r['plate_number']} {r.get('collection_point') or ''}".casefold()]
+        if not reports:
+            st.info("No reports match your search.")
+            return
         report_rows = [{
             "Report": f"#{r['report_id']}",
             "Loading Plan": f"#{r['plan_id']}",
@@ -83,7 +71,7 @@ with report_tab:
             "Loaded Weight": f"{float(r['total_weight']):,.1f} kg",
             "Validation": r["validation_result"],
         } for r in reports]
-        st.dataframe(pd.DataFrame(report_rows), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(report_rows), width="stretch", hide_index=True)
 
         report_ids = [r["report_id"] for r in reports]
         default_report = st.session_state.get("selected_report_id")
@@ -96,6 +84,9 @@ with report_tab:
             format_func=lambda rid: f"Report #{rid}",
         )
         report = get_report(report_id)
+        if not report:
+            st.info("This report is no longer in the current 30-day view.")
+            return
         plan = report["plan"]
 
         st.divider()
@@ -111,19 +102,9 @@ with report_tab:
         d.metric("Plan Status", "✓ Valid" if plan["validation_result"] == "Valid" else plan["validation_result"])
 
         st.subheader("Capacity Use", anchor=False)
-        st.progress(
-            min(max(float(plan["space_utilization"]) / 100.0, 0.0), 1.0),
-            text=f"Lorry volume used: {float(plan['space_utilization']):.1f}% · Remaining: {report['unused_space_percent']:.1f}%",
-        )
-        st.progress(
-            min(max(report["weight_usage_percent"] / 100.0, 0.0), 1.0),
-            text=f"Weight capacity used: {report['weight_usage_percent']:.1f}% · Remaining: {float(plan['remaining_weight_capacity']):,.1f} kg",
-        )
+        render_chart(capacity_chart([dict(plan, weight_utilization=report["weight_usage_percent"])]), "report_capacity")
 
-        st.html(
-            f'<section class="aq-insight"><div class="aq-insight-title">Operational insight</div>'
-            f'<p>{escape(str(report["operational_insight"]))}</p></section>'
-        )
+        st.info(report["operational_insight"])
 
         left, right = st.columns(2, gap="large")
         with left:
@@ -133,7 +114,7 @@ with report_tab:
                 "Customer": o["customer_name"],
                 "Seafood Weight": f"{float(o['seafood_weight_kg']):,.1f} kg",
             } for o in plan["orders"]])
-            st.dataframe(orders_df, use_container_width=True, hide_index=True)
+            st.dataframe(orders_df, width="stretch", hide_index=True)
 
         with right:
             st.subheader("Box Size Breakdown", anchor=False)
@@ -142,123 +123,83 @@ with report_tab:
                 for name, qty in report["box_breakdown"].items()
             ])
             if not box_df.empty:
-                st.dataframe(box_df, use_container_width=True, hide_index=True)
-                breakdown_chart = alt.Chart(box_df).mark_bar(
-                    color="#00aeb7", cornerRadiusEnd=5
-                ).encode(
-                    y=alt.Y("Box Template:N", title=None, sort="-x"),
-                    x=alt.X("Quantity:Q", title="Boxes used", axis=alt.Axis(format="d", tickMinStep=1)),
-                    tooltip=["Box Template:N", alt.Tooltip("Quantity:Q", format=".0f")],
-                ).properties(height=max(150, 42 * len(box_df)))
-                st.altair_chart(aqua_chart(breakdown_chart), use_container_width=True)
+                st.dataframe(box_df, width="stretch", hide_index=True)
+                render_chart(bar_chart(box_df["Box Template"], box_df["Quantity"], "Boxes used", horizontal=True, counts=True), "report_boxes")
+
 
         st.subheader("Validation", anchor=False)
         for check in report["validation_checks"]:
             st.write(f"✓ {check}")
 
-        csv_bytes = report_csv_bytes(report_id)
+        csv_bytes = report_csv_bytes(report_id, report=report)
         st.download_button(
             "Download Loading Report (CSV)",
             data=csv_bytes,
             file_name=f"AquaLoad_Loading_Report_{report_id}.csv",
             mime="text/csv",
-            use_container_width=True,
+            width="stretch",
         )
     else:
-        st.info("No loading reports have been generated yet.")
+        st.info("There are no reports for plans saved in the past 30 days.")
 
-with analytics_tab:
-    summary = analytics_summary()
+def render_analytics(plans):
     st.header("Loading Performance Overview", anchor=False)
-    top_metrics = st.columns(3)
-    top_metrics[0].metric("Loading Plans", summary["total_plans"])
-    top_metrics[1].metric("Average Volume Used", f"{summary['avg_utilization']:.1f}%")
-    top_metrics[2].metric("Average Weight Used", f"{summary['avg_weight_utilization']:.1f}%")
-    lower_metrics = st.columns(2)
-    lower_metrics[0].metric("Best Volume Used", f"{summary['max_utilization']:.1f}%")
-    lower_metrics[1].metric("Boxes Loaded", summary["total_boxes"])
-    st.info(
-        f"Most-used lorry: {summary['most_used_lorry']} | Total loaded weight: {summary['total_weight']:,.1f} kg | "
-        f"Plans below 40% space use: {summary['low_utilization_plans']}"
-    )
-    st.caption(f"Most frequently used lorry: {summary['most_used_lorry']} · Total loaded weight recorded: {summary['total_weight']:,.1f} kg")
+    rows = [plan for plan in reversed(plans) if plan["validation_result"] == "Valid"]
+    if not rows:
+        st.info("There are no valid loading plans from the past 30 days.")
+        return
 
-    series = utilization_series()
-    if not series:
-        st.info("Analytics will appear after valid loading plans are saved.")
-    else:
-        df = pd.DataFrame(series)
-        st.subheader("Space Utilization by Loading Plan", anchor=False)
-        util_df = df[["plan_id", "space_utilization"]].copy()
-        util_df["Loading Plan"] = util_df["plan_id"].map(lambda x: f"Plan #{x}")
-        capacity_df = df.melt(
-            id_vars=["plan_id", "plate_number", "collection_point"],
-            value_vars=["space_utilization", "weight_utilization"],
-            var_name="Capacity Type", value_name="Percent Used",
-        )
-        capacity_df["Loading Plan"] = capacity_df["plan_id"].map(lambda value: f"Plan #{value}")
-        capacity_df["Capacity Type"] = capacity_df["Capacity Type"].map({
-            "space_utilization": "Lorry volume", "weight_utilization": "Weight capacity",
-        })
-        capacity_chart = alt.Chart(capacity_df).mark_bar(size=34, cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
-            x=alt.X("Loading Plan:N", title="Loading plan", sort=None, scale=alt.Scale(paddingInner=0.12, paddingOuter=0.06)),
-            xOffset=alt.XOffset("Capacity Type:N", sort=["Lorry volume", "Weight capacity"], scale=alt.Scale(paddingInner=0, paddingOuter=0)),
-            y=alt.Y("Percent Used:Q", title="Capacity used (%)", scale=alt.Scale(domain=[0, 100])),
-            color=alt.Color("Capacity Type:N", title=None),
-            tooltip=["Loading Plan:N", "plate_number:N", "collection_point:N", "Capacity Type:N", alt.Tooltip("Percent Used:Q", format=".1f")],
-        ).properties(height=310)
-        st.altair_chart(aqua_chart(capacity_chart), use_container_width=True)
+    df = pd.DataFrame(rows)
+    df["weight_utilization"] = [saved_weight_utilization(plan) for plan in rows]
+    df["collection_point"] = df["collection_point"].fillna("Not assigned")
+    df["total_weight"] = df["total_weight"].astype(float)
+    df["space_utilization"] = df["space_utilization"].astype(float)
 
-        st.subheader("Loaded Weight by Plan", anchor=False)
-        weight_df = df[["plan_id", "total_weight"]].copy()
-        weight_df["Loading Plan"] = weight_df["plan_id"].map(lambda x: f"Plan #{x}")
-        weight_chart = alt.Chart(weight_df).mark_bar(color="#087ab0", cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
-            x=alt.X("Loading Plan:N", title="Loading plan", sort=None),
-            y=alt.Y("total_weight:Q", title="Loaded seafood weight (kg)"),
-            tooltip=["Loading Plan:N", alt.Tooltip("total_weight:Q", title="Loaded weight (kg)", format=",.1f")],
-        ).properties(height=300)
-        st.altair_chart(aqua_chart(weight_chart), use_container_width=True)
+    plans_col, volume_col, weight_col, boxes_col = st.columns(4)
+    plans_col.metric("Loading plans", len(df))
+    volume_col.metric("Average volume used", f"{df.space_utilization.mean():.1f}%")
+    weight_col.metric("Average weight used", f"{df.weight_utilization.mean():.1f}%")
+    boxes_col.metric("Boxes loaded", int(df.total_boxes.sum()))
+    lorry, loaded, low = st.columns(3)
+    lorry.metric("Most-used lorry", df.plate_number.mode().iloc[0])
+    loaded.metric("Total loaded weight (kg)", f"{df.total_weight.sum():,.1f}")
+    low.metric("Plans below 40% space use", int((df.space_utilization < 40).sum()))
 
-        left, right = st.columns(2, gap="large")
-        with left:
-            st.subheader("Box Size Usage", anchor=False)
-            boxes = pd.DataFrame(box_usage())
-            if not boxes.empty:
-                box_chart = alt.Chart(boxes).mark_bar(color="#00aeb7", cornerRadiusEnd=5).encode(
-                    y=alt.Y("box_name:N", title=None, sort="-x"),
-                    x=alt.X("quantity:Q", title="Boxes used", axis=alt.Axis(format="d", tickMinStep=1)),
-                    tooltip=[alt.Tooltip("box_name:N", title="Box template"), alt.Tooltip("quantity:Q", title="Boxes used", format=".0f")],
-                ).properties(height=max(180, 48 * len(boxes)))
-                st.altair_chart(aqua_chart(box_chart), use_container_width=True)
-            else:
-                st.info("No box-placement history is available.")
+    st.subheader("Space Utilization by Loading Plan", anchor=False)
+    st.caption("Volume and weight are separate capacity checks for the same saved plan.")
+    render_chart(capacity_chart(df.to_dict("records")), "analytics_capacity")
+    if ((df.space_utilization > 100) | (df.weight_utilization > 100)).any():
+        st.warning("A saved plan exceeds 100% capacity. Review its loading data before use.")
+    st.subheader("Loaded Weight by Plan", anchor=False)
+    render_chart(bar_chart([f"Plan #{p}" for p in df.plan_id], df.total_weight.tolist(), "Loaded weight (kg)", color=BLUE), "analytics_weight")
+    left, right = st.columns(2)
+    with left:
+        st.subheader("Box Size Usage", anchor=False)
+        counts = Counter()
+        for plan_id in df.plan_id:
+            counts.update(plan_box_counts(int(plan_id)))
+        if counts:
+            render_chart(bar_chart(list(counts), list(counts.values()), "Boxes used", horizontal=True, counts=True), "analytics_boxes")
+        else:
+            st.info("No box-placement history is available.")
+    with right:
+        st.subheader("Lorry Usage", anchor=False)
+        counts = df.groupby("plate_number").size()
+        render_chart(bar_chart(counts.index.tolist(), counts.tolist(), "Loading plans", counts=True, color=BLUE), "analytics_lorries")
+    st.subheader("Collection Point Usage", anchor=False)
+    counts = df.groupby("collection_point").size().sort_values(ascending=False)
+    render_chart(bar_chart(counts.index.tolist(), counts.tolist(), "Loading plans", horizontal=True, counts=True), "analytics_points")
 
-        with right:
-            st.subheader("Lorry Usage", anchor=False)
-            lorries = pd.DataFrame(plans_by_lorry())
-            if not lorries.empty:
-                lorry_chart = alt.Chart(lorries).mark_bar(color="#d8a441", cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
-                    x=alt.X("plate_number:N", title="Lorry", sort="-y"),
-                    y=alt.Y("plan_count:Q", title="Saved loading plans", axis=alt.Axis(format="d", tickMinStep=1)),
-                    tooltip=["plate_number:N", alt.Tooltip("plan_count:Q", title="Plans", format=".0f"), alt.Tooltip("avg_utilization:Q", title="Average space used (%)", format=".1f"), alt.Tooltip("avg_weight_utilization:Q", title="Average weight used (%)", format=".1f"), alt.Tooltip("total_weight:Q", title="Total loaded kg", format=",.1f")],
-                ).properties(height=max(180, 48 * len(lorries)))
-                st.altair_chart(aqua_chart(lorry_chart), use_container_width=True)
 
-        st.subheader("Collection Point Usage", anchor=False)
-        points = pd.DataFrame(plans_by_collection_point())
-        if not points.empty:
-            point_chart = alt.Chart(points).mark_bar(color="#df7055", cornerRadiusEnd=5).encode(
-                y=alt.Y("collection_point:N", title=None, sort="-x"),
-                x=alt.X("plan_count:Q", title="Saved loading plans", axis=alt.Axis(format="d", tickMinStep=1)),
-                tooltip=["collection_point:N", alt.Tooltip("plan_count:Q", title="Plans", format=".0f"), alt.Tooltip("avg_utilization:Q", title="Average space used (%)", format=".1f"), alt.Tooltip("total_weight:Q", title="Total loaded kg", format=",.1f")],
-            ).properties(height=max(180, 48 * len(points)))
-            st.altair_chart(aqua_chart(point_chart), use_container_width=True)
-            st.dataframe(
-                points.rename(columns={
-                    "collection_point": "Collection Point",
-                    "plan_count": "Loading Plans",
-                    "avg_utilization": "Average Space Used (%)",
-                }),
-                use_container_width=True,
-                hide_index=True,
-            )
+report_tab, analytics_tab = st.tabs(["Loading Reports", "Analytics"], on_change="rerun")
+try:
+    plans = list_plans()
+    if report_tab.open:
+        with report_tab:
+            render_reports(plans)
+    if analytics_tab.open:
+        with analytics_tab:
+            render_analytics(plans)
+except DeadlockDetected:
+    st.warning("Loading records are temporarily busy. Try again in a moment.")
+    st.button("Retry")

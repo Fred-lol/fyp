@@ -50,4 +50,4 @@ with second:
 with third:
     st.link_button("Back to homepage", "/", use_container_width=True)
 
-st.html('<div class="aq-login-help">Are you an AquaLoad staff member? Use <a href="/staff_login">Staff Login</a> to access warehouse and loading operations.</div>')
+st.info("Are you an AquaLoad staff member? Use [Staff Login](/staff_login) to access warehouse and loading operations.")
