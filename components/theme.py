@@ -12,6 +12,8 @@ LIGHT_VARS = """
   --aq-sidebar-text:#f3fbfd; --aq-table:#ffffff; --aq-soft:#eef8fa;
   --aq-status-success-bg:#d9f5eb; --aq-status-success-text:#075f4d; --aq-status-warning-bg:#fff2cf; --aq-status-warning-text:#825700;
   --aq-status-info-bg:#dff3fb; --aq-status-info-text:#075a7e; --aq-status-danger-bg:#fde3e5; --aq-status-danger-text:#992b32;
+  --aq-alert-success-bg:#ecfdf5; --aq-alert-success-border:#9cddc3; --aq-alert-success-text:#075f46; --aq-alert-info-bg:#eff8ff; --aq-alert-info-border:#9bcceb; --aq-alert-info-text:#075985;
+  --aq-alert-warning-bg:#fff8e8; --aq-alert-warning-border:#ebcf87; --aq-alert-warning-text:#805c00; --aq-alert-error-bg:#fff1f2; --aq-alert-error-border:#f3a3ab; --aq-alert-error-text:#9f1f2d;
   --aq-primary-start:#087ead; --aq-primary-end:#0db4b9; --aq-on-primary:#ffffff;
   --aq-primary-shadow:rgba(0,135,155,.18); --aq-primary-hover-start:#076f9b; --aq-primary-hover-end:#0ba2a8;
   --background-color:#ffffff!important; --secondary-background-color:#f5fbfd!important;
@@ -27,6 +29,8 @@ DARK_VARS = """
   --aq-sidebar-text:#f7fcfd; --aq-table:#0e2938; --aq-soft:#123342;
   --aq-status-success-bg:#124e43; --aq-status-success-text:#a4f1d6; --aq-status-warning-bg:#5b4510; --aq-status-warning-text:#ffe09a;
   --aq-status-info-bg:#104a66; --aq-status-info-text:#b7e9ff; --aq-status-danger-bg:#602b33; --aq-status-danger-text:#ffb8bd;
+  --aq-alert-success-bg:#103f36; --aq-alert-success-border:#277d69; --aq-alert-success-text:#b1efd9; --aq-alert-info-bg:#103d57; --aq-alert-info-border:#287da2; --aq-alert-info-text:#b9e8ff;
+  --aq-alert-warning-bg:#4c3a12; --aq-alert-warning-border:#906e24; --aq-alert-warning-text:#ffe2a0; --aq-alert-error-bg:#532a31; --aq-alert-error-border:#8d3d49; --aq-alert-error-text:#ffc0c5;
   --aq-primary-start:#35d2ca; --aq-primary-end:#4bdde2; --aq-on-primary:#042433;
   --aq-primary-shadow:rgba(53,210,202,.22); --aq-primary-hover-start:#57e2da; --aq-primary-hover-end:#75edf0;
   --background-color:#071a27!important; --secondary-background-color:#0e2938!important;

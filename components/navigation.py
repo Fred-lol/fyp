@@ -27,19 +27,20 @@ def _clear_session():
 
 def require_login():
     if not st.session_state.get("logged_in") or not st.session_state.get("user_id"):
-        # Keep an expired session clear and contained instead of showing a
-        # page-wide alert banner. This is rendered before any portal content.
-        st.html("""
-        <section class="aq-session-card" role="status" aria-label="Session expired">
-          <div class="aq-session-icon" aria-hidden="true">&#128274;</div>
-          <div>
-            <div class="aq-session-title">Session Expired</div>
-            <p>Your session has ended. Please sign in again to continue.</p>
-          </div>
-        </section>
-        """)
-        if st.button("Back to Login", type="primary", key="session_expired_login"):
-            st.switch_page("homepage.py")
+        # A concise authentication card keeps the recovery action and its
+        # explanation together, rather than producing a page-wide banner.
+        with st.container(border=True, key="session_expired_card"):
+            st.html("""
+            <section class="aq-session-card" role="status" aria-label="Session expired">
+              <div class="aq-session-icon" aria-hidden="true">&#9711;</div>
+              <div>
+                <div class="aq-session-title">Session Expired</div>
+                <p>Your session has ended. Please sign in again to continue.</p>
+              </div>
+            </section>
+            """)
+            if st.button("Back to Login", type="primary", key="session_expired_login", use_container_width=True):
+                st.switch_page("homepage.py")
         st.stop()
 
 

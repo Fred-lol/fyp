@@ -1,4 +1,5 @@
 import sys
+from html import escape
 from pathlib import Path
 
 import altair as alt
@@ -119,7 +120,10 @@ with report_tab:
             text=f"Weight capacity used: {report['weight_usage_percent']:.1f}% · Remaining: {float(plan['remaining_weight_capacity']):,.1f} kg",
         )
 
-        st.info(report["operational_insight"])
+        st.html(
+            f'<section class="aq-insight"><div class="aq-insight-title">Operational insight</div>'
+            f'<p>{escape(str(report["operational_insight"]))}</p></section>'
+        )
 
         left, right = st.columns(2, gap="large")
         with left:
@@ -139,8 +143,14 @@ with report_tab:
             ])
             if not box_df.empty:
                 st.dataframe(box_df, use_container_width=True, hide_index=True)
-                chart_df = box_df.set_index("Box Template")[["Quantity"]]
-                st.bar_chart(chart_df)
+                breakdown_chart = alt.Chart(box_df).mark_bar(
+                    color="#00aeb7", cornerRadiusEnd=5
+                ).encode(
+                    y=alt.Y("Box Template:N", title=None, sort="-x"),
+                    x=alt.X("Quantity:Q", title="Boxes used", axis=alt.Axis(format="d", tickMinStep=1)),
+                    tooltip=["Box Template:N", alt.Tooltip("Quantity:Q", format=".0f")],
+                ).properties(height=max(150, 42 * len(box_df)))
+                st.altair_chart(aqua_chart(breakdown_chart), use_container_width=True)
 
         st.subheader("Validation", anchor=False)
         for check in report["validation_checks"]:

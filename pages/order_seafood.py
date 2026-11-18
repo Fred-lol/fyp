@@ -37,6 +37,7 @@ st.html("""
 .aq-stock-banner{margin:0!important;padding:7px 10px!important;border-radius:8px!important;font-size:.78rem!important;font-weight:750!important;line-height:1.3!important}
 .aq-stock-banner.available{background:var(--aq-status-success-bg)!important;color:var(--aq-status-success-text)!important;border:1px solid color-mix(in srgb,var(--aq-status-success-text) 32%,transparent)!important}.aq-stock-banner.low{background:var(--aq-status-warning-bg)!important;color:var(--aq-status-warning-text)!important;border:1px solid color-mix(in srgb,var(--aq-status-warning-text) 32%,transparent)!important}.aq-stock-banner.out{background:var(--aq-status-danger-bg)!important;color:var(--aq-status-danger-text)!important;border:1px solid color-mix(in srgb,var(--aq-status-danger-text) 32%,transparent)!important}
 [data-testid="stMain"] [class*="st-key-seafood-card-"] .stNumberInput [data-baseweb="input"]{min-height:40px!important}[data-testid="stMain"] [class*="st-key-seafood-card-"] .stNumberInput [data-baseweb="input"] input,[data-testid="stMain"] [class*="st-key-seafood-card-"] .stNumberInput [data-baseweb="input"] button{height:40px!important}[data-testid="stMain"] [class*="st-key-seafood-card-"] [data-testid="stFormSubmitButton"]{margin-top:2px!important}[data-testid="stMain"] [class*="st-key-seafood-card-"] [data-testid="stFormSubmitButton"] button{min-height:41px!important}
+.st-key-cart_panel{min-width:min(380px,calc(100vw - 32px))!important;padding:4px!important}.st-key-cart_panel [class*="st-key-cart_line-"]{padding:10px 0!important;border-bottom:1px solid var(--aq-border)!important}.st-key-cart_panel [class*="st-key-cart_line-"]:last-of-type{border-bottom:0!important}.aq-cart-empty{padding:22px 12px!important;text-align:center!important;color:var(--aq-muted)!important}.aq-cart-empty-icon{display:block!important;margin:0 auto 8px!important;color:var(--aq-teal)!important;font-size:1.3rem!important}.aq-cart-empty strong{display:block!important;color:var(--aq-navy)!important;font-size:.95rem!important}.aq-cart-empty p{margin:4px 0 0!important;color:var(--aq-muted)!important;font-size:.84rem!important}.aq-cart-totals{margin-top:12px!important;padding-top:12px!important;border-top:1px solid var(--aq-border)!important}.aq-cart-total-amount{margin-top:3px!important;color:var(--aq-navy)!important;font-size:1.3rem!important;font-weight:800!important}
 @media(max-width:900px){[data-testid="stMain"] [class*="st-key-seafood-card-"]{min-height:0!important}[data-testid="stMain"] [class*="st-key-seafood-card-"] .aq-seafood-card-image{height:190px!important}}
 </style>
 """)
@@ -92,38 +93,38 @@ def ordering_workspace() -> None:
     with cart_action:
         cart_summary = checkout_summary(list(st.session_state.cart.items()))
         with st.popover(f"Cart ({len(cart_summary['items'])})", icon=":material/shopping_cart:", help="Review cart", use_container_width=True):
-            st.subheader("Your Cart", anchor=False)
-            if not cart_summary["items"]:
-                st.info("Your cart is empty. Add seafood to begin your order.")
-            else:
-                for line in cart_summary["items"]:
-                    st.markdown(f"**{line['product_name']}**")
-                    st.caption(f"RM {line['unit_price']:,.2f} / {line['unit']} · Available: {line['stock_quantity']:g} {line['unit']}")
-                    quantity_col, remove_col = st.columns([5, .75], vertical_alignment="bottom")
-                    with quantity_col:
-                        st.number_input(
-                            f"Quantity for {line['product_name']} ({line['unit']})", min_value=MIN_WHOLESALE_ORDER_KG,
-                            max_value=max(MIN_WHOLESALE_ORDER_KG, float(line["stock_quantity"])),
-                            value=max(MIN_WHOLESALE_ORDER_KG, min(float(line["quantity"]), float(line["stock_quantity"]))), step=1.0,
-                            key=f"cart_popover_quantity_{line['product_id']}", on_change=_change_cart_quantity, args=(line["product_id"],),
-                        )
-                    with remove_col:
-                        if st.button(":material/delete:", key=f"remove_cart_item_{line['product_id']}", help=f"Remove {line['product_name']} from cart", type="tertiary"):
-                            st.session_state.cart.pop(line["product_id"], None)
-                            st.session_state.pop(f"cart_popover_quantity_{line['product_id']}", None)
-                            st.session_state.pop(f"cart_quantity_{line['product_id']}", None)
-                            st.toast(f"{line['product_name']} removed from cart.")
-                            st.rerun(scope="fragment")
-                st.divider()
-                st.markdown(f"**Total weight:** {cart_summary['total_weight_kg']:g} kg")
-                st.markdown(f"### RM {cart_summary['total_amount']:,.2f}")
-                if st.button("Proceed to payment", type="primary", use_container_width=True, key="cart_proceed_payment"):
-                    invalid = [line for line in cart_summary["items"] if line["availability_status"] != "Available" or line["quantity"] < MIN_WHOLESALE_ORDER_KG or line["quantity"] > line["stock_quantity"] + 1e-9]
-                    if invalid:
-                        st.error("One or more cart items are no longer available. Review their quantity before payment.")
-                    else:
-                        st.session_state.checkout_cart = list(st.session_state.cart.items())
-                        st.switch_page("pages/payment.py")
+            with st.container(key="cart_panel"):
+                st.subheader("Your Cart", anchor=False)
+                if not cart_summary["items"]:
+                    st.html("""<div class="aq-cart-empty"><span class="aq-cart-empty-icon">&#128722;</span><strong>Your cart is empty</strong><p>Add seafood from the catalogue to begin your order.</p></div>""")
+                else:
+                    for line in cart_summary["items"]:
+                        with st.container(key=f"cart_line_{line['product_id']}"):
+                            st.markdown(f"**{line['product_name']}**")
+                            st.caption(f"RM {line['unit_price']:,.2f} / {line['unit']} · {line['quantity']:g} {line['unit']} · Subtotal RM {line['line_total']:,.2f}")
+                            quantity_col, remove_col = st.columns([5, .75], vertical_alignment="bottom")
+                            with quantity_col:
+                                st.number_input(
+                                    f"Quantity for {line['product_name']} ({line['unit']})", min_value=MIN_WHOLESALE_ORDER_KG,
+                                    max_value=max(MIN_WHOLESALE_ORDER_KG, float(line["stock_quantity"])),
+                                    value=max(MIN_WHOLESALE_ORDER_KG, min(float(line["quantity"]), float(line["stock_quantity"]))), step=1.0,
+                                    key=f"cart_popover_quantity_{line['product_id']}", on_change=_change_cart_quantity, args=(line["product_id"],),
+                                )
+                            with remove_col:
+                                if st.button(":material/delete:", key=f"remove_cart_item_{line['product_id']}", help=f"Remove {line['product_name']} from cart", type="tertiary"):
+                                    st.session_state.cart.pop(line["product_id"], None)
+                                    st.session_state.pop(f"cart_popover_quantity_{line['product_id']}", None)
+                                    st.session_state.pop(f"cart_quantity_{line['product_id']}", None)
+                                    st.toast(f"{line['product_name']} removed from cart.")
+                                    st.rerun(scope="fragment")
+                    st.html(f"""<div class="aq-cart-totals"><strong>Total seafood weight</strong><div>{cart_summary['total_weight_kg']:g} kg</div><div class="aq-cart-total-amount">RM {cart_summary['total_amount']:,.2f}</div></div>""")
+                    if st.button("Proceed to payment", type="primary", use_container_width=True, key="cart_proceed_payment"):
+                        invalid = [line for line in cart_summary["items"] if line["availability_status"] != "Available" or line["quantity"] < MIN_WHOLESALE_ORDER_KG or line["quantity"] > line["stock_quantity"] + 1e-9]
+                        if invalid:
+                            st.error("One or more cart items are no longer available. Review their quantity before payment.")
+                        else:
+                            st.session_state.checkout_cart = list(st.session_state.cart.items())
+                            st.switch_page("pages/payment.py")
 
     products = _catalogue_products(search, category)
     if not products:

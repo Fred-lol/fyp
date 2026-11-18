@@ -50,10 +50,10 @@ UI_FOUNDATION_CSS = r"""
 
 
 # Streamlit can render an outer stAlertContainer around an inner stAlert
-# panel.  Only the inner panel is painted, so feedback never looks layered.
+# panel. Only the inner panel is painted, so feedback stays as one compact
+# notification card rather than a layered page-wide banner.
 ALERT_CSS = r"""
-/* AquaLoad feedback: success = green, confirmation/info = blue, error = red.
-   Fixed, high-contrast colours keep messages visible in all appearances. */
+/* AquaLoad feedback: compact, left-aligned and semantically coloured. */
 [data-testid="stAlertContainer"],
 [data-testid="stAlertContainer"][role="alert"]{
   margin:0!important;padding:0!important;background:transparent!important;
@@ -63,45 +63,46 @@ ALERT_CSS = r"""
 [data-testid="stAlertContainer"] [data-testid="stAlert"],
 [data-testid="stAlertContainer"] [role="alert"]{
   margin:8px 0 14px!important;padding:0!important;
-  border-radius:14px!important;border-width:1px!important;border-style:solid!important;
-  overflow:hidden!important;box-shadow:0 4px 12px rgba(0,0,0,.11)!important;color:#fff!important;opacity:1!important;
+  border-radius:10px!important;border-width:1px!important;border-style:solid!important;
+  overflow:hidden!important;box-shadow:none!important;opacity:1!important;
 }
 /* Successful completed action. */
 [data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]),
 [role="alert"]:has([data-testid="stAlertContentSuccess"]),
 [data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) [data-testid="stAlert"],
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) [role="alert"]{background:#08765f!important;border-color:#43d8ad!important}
-/* Confirmation, guidance and neutral information. Warnings are confirmations,
-   so they use the same blue treatment instead of a fourth alert colour. */
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentSuccess"]) [role="alert"]{background:var(--aq-alert-success-bg,#ecfdf5)!important;border-color:var(--aq-alert-success-border,#9cddc3)!important;color:var(--aq-alert-success-text,#075f46)!important}
+/* Informational guidance. */
 [data-testid="stAlert"]:has([data-testid="stAlertContentInfo"]),
-[data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]),
 [role="alert"]:has([data-testid="stAlertContentInfo"]),
-[role="alert"]:has([data-testid="stAlertContentWarning"]),
 [data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) [data-testid="stAlert"],
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) [data-testid="stAlert"],
 [data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) [role="alert"],
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) [role="alert"]{background:#075f8c!important;border-color:#59cdfb!important}
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentInfo"]) [role="alert"]{background:var(--aq-alert-info-bg,#eff8ff)!important;border-color:var(--aq-alert-info-border,#9bcceb)!important;color:var(--aq-alert-info-text,#075985)!important}
+/* Warnings remain distinct without using an oversized saturated panel. */
+[data-testid="stAlert"]:has([data-testid="stAlertContentWarning"]),
+[role="alert"]:has([data-testid="stAlertContentWarning"]),
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) [data-testid="stAlert"],
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentWarning"]) [role="alert"]{background:var(--aq-alert-warning-bg,#fff8e8)!important;border-color:var(--aq-alert-warning-border,#ebcf87)!important;color:var(--aq-alert-warning-text,#805c00)!important}
 /* Validation and failed actions. */
 [data-testid="stAlert"]:has([data-testid="stAlertContentError"]),
 [role="alert"]:has([data-testid="stAlertContentError"]),
 [data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) [data-testid="stAlert"],
-[data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) [role="alert"]{background:#972a31!important;border-color:#ff979b!important}
+[data-testid="stAlertContainer"]:has([data-testid="stAlertContentError"]) [role="alert"]{background:var(--aq-alert-error-bg,#fff1f2)!important;border-color:var(--aq-alert-error-border,#f3a3ab)!important;color:var(--aq-alert-error-text,#9f1f2d)!important}
 [data-testid="stAlert"] *,
 [data-testid="stAlertContainer"] [data-testid="stAlert"] *,
-[data-testid="stAlertContainer"] [role="alert"] *{color:#fff!important;-webkit-text-fill-color:#fff!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
+[data-testid="stAlertContainer"] [role="alert"] *{color:inherit!important;-webkit-text-fill-color:currentColor!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
 /* Streamlit has a wrapper div on some versions. Reset it first, then give
    only the actual alert-content element one compact, deliberate padding. */
 [data-testid="stAlert"] > div:not([data-testid^="stAlertContent"]),
 [data-testid="stAlertContainer"] [role="alert"] > div:not([data-testid^="stAlertContent"]){padding:0!important;margin:0!important}
 [data-testid^="stAlertContent"]{
-  display:flex!important;align-items:center!important;justify-content:center!important;gap:10px!important;
-  padding:13px 18px!important;
-  text-align:center!important;
+  display:flex!important;align-items:flex-start!important;justify-content:flex-start!important;gap:10px!important;
+  padding:12px 15px!important;
+  text-align:left!important;
 }
-[data-testid^="stAlertContent"] > div{min-width:0!important;text-align:center!important}
+[data-testid^="stAlertContent"] > div{min-width:0!important;text-align:left!important}
 [data-testid="stAlert"] p,
 [data-testid="stAlertContainer"] [data-testid="stAlert"] p,
-[data-testid="stAlertContainer"] [role="alert"] p{margin:0!important;font-size:.94rem!important;font-weight:650!important;line-height:1.45!important}
+[data-testid="stAlertContainer"] [role="alert"] p{margin:0!important;font-size:.92rem!important;font-weight:600!important;line-height:1.5!important}
 """
 
 
