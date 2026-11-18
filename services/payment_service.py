@@ -163,7 +163,7 @@ def checkout_summary(items):
     }
 
 
-def complete_demo_payment(customer_id, items, payment_method, payment_details=None):
+def complete_demo_payment(customer_id, items, payment_method, payment_details=None, collection_point_id=None):
     """Simulate a successful payment, then create the AquaLoad Pending order.
 
     No external payment gateway is called and no card/bank credentials are stored.
@@ -172,12 +172,14 @@ def complete_demo_payment(customer_id, items, payment_method, payment_details=No
         return False, "Please select a valid payment method.", None
     if errors := validate_payment_details(payment_method, payment_details):
         return False, next(iter(errors.values())), None
+    if collection_point_id is None:
+        return False, "Choose a collection point before payment.", None
 
     summary = checkout_summary(items)
     if not summary["items"]:
         return False, "Your checkout is empty.", None
 
-    ok, message, order_id = place_order(customer_id, items)
+    ok, message, order_id = place_order(customer_id, items, collection_point_id=collection_point_id)
     if not ok:
         return False, message, None
 

@@ -49,11 +49,11 @@ class LatestRequirementTests(unittest.TestCase):
         self.assertTrue(ok)
         return order_id
 
-    def test_collection_point_auto_assigns_from_customer_state_city(self):
+    def test_perlis_order_is_local_pickup(self):
         order_id = self._order(50)
         order = get_order(order_id)
         self.assertEqual(order["collection_point"], "Kangar Wholesale Collection Point")
-        self.assertEqual(order["collection_assignment"], "Automatic")
+        self.assertEqual(order["collection_assignment"], "Local Pickup")
 
     def test_50kg_recommends_one_50l_box(self):
         order_id = self._order(50)
@@ -82,7 +82,7 @@ class LatestRequirementTests(unittest.TestCase):
         ok, _ = accept_box_recommendation(order_id, 0)
         self.assertTrue(ok)
         ok, _ = update_order_status(order_id, "Ready for Loading", self.staff)
-        self.assertTrue(ok)
+        self.assertFalse(ok)
 
 
     def test_box_labels_are_unique_per_order_and_include_customer(self):

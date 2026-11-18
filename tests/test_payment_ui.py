@@ -45,19 +45,21 @@ class PaymentUITests(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_demo_payment_creates_paid_pending_order(self):
+    def test_demo_payment_creates_paid_perlis_pickup_order(self):
         ok, _, order_id = complete_demo_payment(
             self.customer,
-            [(1, 5)],
+            [(1, 10)],
             "Online Banking (FPX)",
             {"bank": "Maybank2u", "account_name": "Payment Customer"},
+            collection_point_id=1,
         )
         self.assertTrue(ok)
         order = get_order(order_id, self.customer)
         payment = get_payment(order_id)
         self.assertEqual(order["status"], "Pending")
+        self.assertEqual(order["collection_assignment"], "Local Pickup")
         self.assertEqual(payment["payment_status"], "Paid")
-        self.assertEqual(payment["amount"], 100.0)
+        self.assertEqual(payment["amount"], 200.0)
 
 
 if __name__ == "__main__":

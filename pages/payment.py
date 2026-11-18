@@ -19,6 +19,8 @@ from services.payment_service import (
     complete_demo_payment,
     validate_payment_details,
 )
+from services.collection_point_service import list_collection_points
+from services.auth_service import get_user
 
 bootstrap_app()
 st.set_page_config(page_title="Payment | AquaLoad", page_icon="💳", layout="wide")
@@ -151,23 +153,32 @@ def _payment_details_from_state(method):
     }
 
 
-def _submit_payment(cart):
+def _submit_payment(cart, collection_point_id):
     method = st.session_state.get("payment_method", PAYMENT_METHODS[0])
     if method == "Credit / Debit Card":
         _format_card_number()
         _format_expiry_date()
     details = _payment_details_from_state(method)
     errors = validate_payment_details(method, details)
+    if collection_point_id is None:
+        errors["collection_point"] = "Choose a collection point before payment."
     st.session_state.payment_errors = errors
     if errors:
         return
     ok, message, order_id = complete_demo_payment(
-        st.session_state.user_id, cart, method, details,
+        st.session_state.user_id, cart, method, details, collection_point_id,
     )
     if not ok:
         st.session_state.payment_errors = {"form": message}
         return
     st.session_state.payment_success_pending = order_id
+
+
+def _clear_collection_point_error():
+    """Remove only the collection-point warning as soon as a valid choice is made."""
+    errors = dict(st.session_state.get("payment_errors", {}))
+    if errors.pop("collection_point", None):
+        st.session_state.payment_errors = errors
 
 checkout_cart = st.session_state.get("checkout_cart")
 if not checkout_cart:
@@ -179,6 +190,19 @@ if not summary["items"]:
     st.error("The checkout could not be loaded. Please prepare your seafood order again.")
     st.stop()
 
+customer = get_user(st.session_state.user_id) or {}
+collection_points = list_collection_points("Available")
+if (customer.get("state") or "").strip() == "Perlis":
+    collection_points = [point for point in collection_points if point["state"] == "Perlis"]
+if not collection_points:
+    st.error("No suitable collection point is currently available. Please try again later.")
+    st.stop()
+
+point_labels = {
+    f"{point['point_name']} · {point['city']}, {point['state']}": point
+    for point in collection_points
+}
+errors = st.session_state.get("payment_errors", {})
 left, right = st.columns([1.05, 1], gap="large")
 
 with left:
@@ -199,13 +223,27 @@ with left:
         a, b = st.columns(2)
         a.metric("Total Seafood Weight", f"{summary['total_weight_kg']:g} kg")
         b.metric("Amount to Pay", f"RM {summary['total_amount']:,.2f}")
-        st.caption(
-            "The assigned wholesale collection point will be determined automatically from your registered location after checkout."
+        selected_point_label = st.selectbox(
+            "Collection Point", list(point_labels), index=None,
+            placeholder="Select a collection point", key="payment_collection_point",
+            on_change=_clear_collection_point_error,
+            help="Choose where you will collect your seafood or where AquaLoad will deliver it.",
         )
+        selected_point = point_labels.get(selected_point_label)
+        if errors.get("collection_point"):
+            st.error(errors["collection_point"], icon="⚠️")
+        elif not selected_point:
+            st.caption("Required before payment. Choose a collection point for this order.")
+        elif selected_point["state"] == "Perlis":
+            st.success(
+                f"Self-pickup: collect at {selected_point['point_name']}. "
+                "This order will not be sent to lorry loading."
+            )
+        else:
+            st.info(f"Lorry delivery will be arranged to {selected_point['point_name']} after staff confirmation.")
 
 with right:
     method = st.radio("Choose Payment Method", PAYMENT_METHODS, key="payment_method")
-    errors = st.session_state.get("payment_errors", {})
     with st.container(border=True):
         st.markdown("### Payment Details")
         if method == "Credit / Debit Card":
@@ -250,7 +288,11 @@ with right:
         st.markdown(f"### RM {summary['total_amount']:,.2f}")
         if errors.get("form"):
             st.error(errors["form"], icon="⚠️")
-        st.button("Pay & Place Order", type="primary", use_container_width=True, on_click=_submit_payment, args=(checkout_cart,))
+        st.button(
+            "Pay & Place Order", type="primary", use_container_width=True,
+            on_click=_submit_payment,
+            args=(checkout_cart, selected_point["collection_point_id"] if selected_point else None),
+        )
 
 if order_id := st.session_state.pop("payment_success_pending", None):
     st.session_state.last_paid_order_id = order_id

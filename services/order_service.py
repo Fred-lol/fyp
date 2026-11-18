@@ -62,8 +62,12 @@ def _customer(conn, customer_id):
     return conn.execute("SELECT * FROM users WHERE user_id=?", (customer_id,)).fetchone()
 
 
-def place_order(customer_id, items):
-    """Create a Pending order, reserve seafood stock and auto-assign collection point."""
+def place_order(customer_id, items, collection_point_id=None):
+    """Create a Pending order with a chosen collection point and reserve stock.
+
+    ``collection_point_id`` is optional only for older internal callers such
+    as seed data. Customer checkout always supplies it before payment.
+    """
     initialize_schema()
     requested = {}
     for product_id, quantity in items:
@@ -76,6 +80,13 @@ def place_order(customer_id, items):
         return False, "Select at least one seafood item.", None
     if any(quantity < MIN_WHOLESALE_ORDER_KG for _, quantity in clean_items):
         return False, f"Each seafood product must be ordered in quantities of at least {MIN_WHOLESALE_ORDER_KG:g} kg.", None
+
+    selected_point_id = None
+    if collection_point_id is not None:
+        try:
+            selected_point_id = int(collection_point_id)
+        except (TypeError, ValueError):
+            return False, "Select an available collection point before payment.", None
 
     with db_session() as conn:
         customer = _customer(conn, customer_id)
@@ -103,11 +114,24 @@ def place_order(customer_id, items):
             if qty > stock + 1e-9:
                 return False, f"Only {stock:g} {seafood['unit']} of {seafood['product_name']} is currently available.", None
 
-        point = recommend_collection_point(dict(customer))
+        if selected_point_id is not None:
+            selected_point = conn.execute(
+                "SELECT * FROM collection_points WHERE collection_point_id=? AND status='Available'",
+                (selected_point_id,),
+            ).fetchone()
+            if not selected_point:
+                return False, "The selected collection point is no longer available. Please choose another point.", None
+            point = dict(selected_point)
+            if (customer["state"] or "").strip() == "Perlis" and point["state"] != "Perlis":
+                return False, "Customers registered in Perlis must choose a Perlis pickup point. Lorry delivery is not used for Perlis orders.", None
+        else:
+            point = recommend_collection_point(dict(customer))
         point_id = point["collection_point_id"] if point else None
         point_name = point["point_name"] if point else None
         local_pickup = bool(point and is_local_kuala_perlis_pickup(dict(customer), point))
-        collection_assignment = "Local Pickup" if local_pickup else "Automatic"
+        collection_assignment = "Local Pickup" if local_pickup else (
+            "Customer Selected" if selected_point_id is not None else "Automatic"
+        )
 
         cur = conn.execute(
             """
@@ -143,7 +167,9 @@ def place_order(customer_id, items):
         note = "Order submitted by Customer."
         if point:
             if local_pickup:
-                note += " Local pickup is arranged at LKIM Fisheries Complex Kuala Perlis; no lorry delivery is required."
+                note += f" Local pickup is arranged at {point['point_name']}; no lorry delivery is required."
+            elif selected_point_id is not None:
+                note += f" Customer selected collection point: {point['point_name']}."
             else:
                 note += f" Collection point automatically assigned to {point['point_name']} from the Customer's registered location."
         conn.execute(
@@ -152,7 +178,7 @@ def place_order(customer_id, items):
         )
 
     if local_pickup:
-        return True, "Seafood order placed successfully. Please collect it from LKIM Fisheries Complex Kuala Perlis after staff confirms it; no lorry delivery is required.", order_id
+        return True, f"Seafood order placed successfully. Please collect it from {point_name} after staff confirms it; no lorry delivery is required.", order_id
     return True, "Seafood order placed successfully.", order_id
 
 
@@ -486,7 +512,7 @@ def update_order_status(order_id, new_status, updated_by, note=""):
             )
             next_status = "Ready for Pickup" if order["collection_assignment"] == "Local Pickup" else "Ready for Loading"
             next_note = (
-                "Ready for pickup at LKIM Fisheries Complex Kuala Perlis. No lorry delivery is required."
+                f"Ready for pickup at {order['collection_point'] or 'the selected Perlis collection point'}. No lorry delivery is required."
                 if next_status == "Ready for Pickup"
                 else "Automatically prepared for loading after Staff confirmation."
             )
@@ -536,6 +562,8 @@ def set_collection_point(order_id, collection_point_id, updated_by=None):
             "SELECT u.state FROM seafood_orders o JOIN users u ON u.user_id=o.customer_id WHERE o.order_id=?",
             (order_id,),
         ).fetchone()
+        if customer and (customer["state"] or "").strip() == "Perlis" and point["state"] != "Perlis":
+            return False, "Perlis orders must remain at a Perlis pickup point. They cannot be assigned to a lorry route."
         assignment = "Local Pickup" if customer and is_local_kuala_perlis_pickup(dict(customer), point) else "Staff Override"
         result = conn.execute(
             """
@@ -549,7 +577,7 @@ def set_collection_point(order_id, collection_point_id, updated_by=None):
         if result.rowcount != 1:
             return False, "Archived orders are read-only."
     if assignment == "Local Pickup":
-        return True, "Collection point updated. This Perlis order is for pickup at LKIM Fisheries Complex Kuala Perlis; no lorry is required."
+        return True, f"Collection point updated. This is a Perlis pickup order at {point['point_name']}; no lorry is required."
     return True, "Collection point updated successfully."
 
 
@@ -774,6 +802,7 @@ def eligible_orders_for_optimization(collection_point_id=None):
         JOIN users u ON u.user_id=o.customer_id
         LEFT JOIN order_box_requirements r ON r.order_id=o.order_id
         WHERE o.status IN ({placeholders})
+          AND COALESCE(o.collection_assignment,'') <> 'Local Pickup'
     """
     params = list(OPTIMIZATION_ELIGIBLE_STATUSES)
     if collection_point_id is not None:

@@ -80,13 +80,13 @@ NON_LORRY_DELIVERY_STATES = {"Sabah", "Sarawak", "W.P. Labuan"}
 def is_local_kuala_perlis_pickup(customer, collection_point):
     """Return whether an order is collected locally instead of sent by lorry.
 
-    AquaLoad operates from LKIM Kuala Perlis.  Customers registered in Perlis
-    who are assigned a Perlis collection point collect directly from LKIM, so
-    they must never enter the lorry-loading or GPS-tracking workflow.
+    Any collection point in Perlis is a self-pickup location. AquaLoad operates
+    from LKIM Kuala Perlis, so these orders must never enter the lorry-loading
+    or GPS-tracking workflow. The customer value is retained for compatibility
+    with existing service calls.
     """
-    customer_state = (customer.get("state") or "").strip()
     point_state = (collection_point.get("state") or "").strip()
-    return customer_state == "Perlis" and point_state == "Perlis"
+    return point_state == "Perlis"
 
 
 def is_lorry_delivery_supported(customer):
