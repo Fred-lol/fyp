@@ -62,9 +62,9 @@ ALERT_CSS = r"""
 [data-testid="stAlert"],
 [data-testid="stAlertContainer"] [data-testid="stAlert"],
 [data-testid="stAlertContainer"] [role="alert"]{
-  margin:12px 0 18px!important;padding:0!important;
-  border-radius:12px!important;border-width:1px!important;border-style:solid!important;
-  overflow:hidden!important;box-shadow:0 6px 14px rgba(0,0,0,.12)!important;color:#fff!important;opacity:1!important;
+  margin:8px 0 14px!important;padding:0!important;
+  border-radius:14px!important;border-width:1px!important;border-style:solid!important;
+  overflow:hidden!important;box-shadow:0 4px 12px rgba(0,0,0,.11)!important;color:#fff!important;opacity:1!important;
 }
 /* Successful completed action. */
 [data-testid="stAlert"]:has([data-testid="stAlertContentSuccess"]),
@@ -89,17 +89,18 @@ ALERT_CSS = r"""
 [data-testid="stAlert"] *,
 [data-testid="stAlertContainer"] [data-testid="stAlert"] *,
 [data-testid="stAlertContainer"] [role="alert"] *{color:#fff!important;-webkit-text-fill-color:#fff!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
+/* Streamlit has a wrapper div on some versions. Reset it first, then give
+   only the actual alert-content element one compact, deliberate padding. */
+[data-testid="stAlert"] > div:not([data-testid^="stAlertContent"]),
+[data-testid="stAlertContainer"] [role="alert"] > div:not([data-testid^="stAlertContent"]){padding:0!important;margin:0!important}
 [data-testid^="stAlertContent"]{
   display:flex!important;align-items:flex-start!important;gap:10px!important;
-  padding:16px 20px!important;
+  padding:13px 18px!important;
 }
-[data-testid="stAlert"] > div:first-child,
-[data-testid="stAlertContainer"] [data-testid="stAlert"] > div:first-child,
-[data-testid="stAlertContainer"] [role="alert"] > div:first-child{padding:16px 20px!important}
 [data-testid^="stAlertContent"] > div{min-width:0!important}
 [data-testid="stAlert"] p,
 [data-testid="stAlertContainer"] [data-testid="stAlert"] p,
-[data-testid="stAlertContainer"] [role="alert"] p{margin:0!important;font-weight:650!important;line-height:1.5!important}
+[data-testid="stAlertContainer"] [role="alert"] p{margin:0!important;font-size:.94rem!important;font-weight:650!important;line-height:1.45!important}
 """
 
 
