@@ -94,10 +94,11 @@ ALERT_CSS = r"""
 [data-testid="stAlert"] > div:not([data-testid^="stAlertContent"]),
 [data-testid="stAlertContainer"] [role="alert"] > div:not([data-testid^="stAlertContent"]){padding:0!important;margin:0!important}
 [data-testid^="stAlertContent"]{
-  display:flex!important;align-items:flex-start!important;gap:10px!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;gap:10px!important;
   padding:13px 18px!important;
+  text-align:center!important;
 }
-[data-testid^="stAlertContent"] > div{min-width:0!important}
+[data-testid^="stAlertContent"] > div{min-width:0!important;text-align:center!important}
 [data-testid="stAlert"] p,
 [data-testid="stAlertContainer"] [data-testid="stAlert"] p,
 [data-testid="stAlertContainer"] [role="alert"] p{margin:0!important;font-size:.94rem!important;font-weight:650!important;line-height:1.45!important}
