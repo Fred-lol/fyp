@@ -120,9 +120,15 @@ st.set_page_config(page_title="Track Order | AquaLoad", page_icon="T", layout="w
 apply_theme(); customer_sidebar()
 page_header("Track Order", "View your order status, assigned collection point and the latest location of the lorry carrying your order.", "Order Tracking")
 
-orders = list_customer_orders(st.session_state.user_id)
+orders = [
+    order for order in list_customer_orders(st.session_state.user_id)
+    if order.get("status") != "Cancelled"
+]
 if not orders:
-    empty_state("You do not have any orders to track.")
+    # Cancelled orders remain visible in My Orders as a record, but they have
+    # no collection or lorry journey to track.
+    st.session_state.pop("selected_order_id", None)
+    empty_state("You do not have any active orders to track.")
     st.stop()
 ids = [order["order_id"] for order in orders]
 default_id = st.session_state.get("selected_order_id") if st.session_state.get("selected_order_id") in ids else ids[0]

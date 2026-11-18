@@ -86,10 +86,11 @@ for o in orders:
             confirm_column = action_columns[1] if can_cancel else None
             cancel_column = action_columns[2] if can_cancel else None
 
-        with track_column:
-            if st.button("Track Status", key=f"track_{o['order_id']}", use_container_width=True):
-                st.session_state.selected_order_id = o['order_id']
-                st.switch_page("pages/track_order.py")
+        if detail["status"] != "Cancelled":
+            with track_column:
+                if st.button("Track Status", key=f"track_{o['order_id']}", use_container_width=True):
+                    st.session_state.selected_order_id = o['order_id']
+                    st.switch_page("pages/track_order.py")
         if can_cancel:
             with confirm_column:
                 confirm = st.checkbox("Confirm cancellation", key=f"confirm_{o['order_id']}")
