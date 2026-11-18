@@ -12,6 +12,7 @@ from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
 from components.navigation import staff_sidebar, require_staff
 from components.seafood_images import seafood_image_source
+from components.display import friendly_datetime
 from constants import PRODUCT_STATUSES, SEAFOOD_CATEGORIES
 from services.product_service import (
     list_seafood,
@@ -321,7 +322,7 @@ with tab_manage:
             "price": f"RM {float(product.get('unit_price') or 0):,.2f} / kg",
             "stock": f"{float(product['stock_quantity']):g} kg",
             "availability": product["availability_status"],
-            "updated": product["updated_at"],
+            "updated": friendly_datetime(product["updated_at"]),
             "edit": ":material/edit:",
             "delete": ":material/delete:",
         } for product in products]

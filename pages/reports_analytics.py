@@ -12,6 +12,7 @@ if str(PROJECT_DIR) not in sys.path:
 from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
 from components.navigation import staff_sidebar, require_staff
+from components.display import friendly_datetime
 from services.optimization_service import list_plans
 from services.report_service import generate_report, list_reports, get_report, report_csv_bytes
 from services.analytics_service import (
@@ -24,20 +25,13 @@ from services.analytics_service import (
 
 bootstrap_app()
 
-def friendly_datetime(value):
-    try:
-        return pd.to_datetime(value).strftime("%d %b %Y, %I:%M %p")
-    except Exception:
-        return str(value)
-
-
 def aqua_chart(chart):
     """Apply accessible AquaLoad chart styling in light and dark appearances."""
-    dark = st.session_state.get("theme_preference") == "dark"
+    dark = str(st.session_state.get("theme_preference", "System")).lower() == "dark"
     text = "#f5fbfd" if dark else "#123b57"
     muted = "#bfd0d9" if dark else "#617b8d"
     grid = "#315363" if dark else "#d7e6ec"
-    return chart.configure_view(stroke=None).configure_axis(
+    return chart.configure_view(stroke=None, fill="transparent").configure_axis(
         labelColor=text, titleColor=text, domainColor=grid, tickColor=grid,
         gridColor=grid, labelFontSize=12, titleFontSize=12,
     ).configure_legend(labelColor=text, titleColor=text).configure_title(
@@ -110,7 +104,7 @@ with report_tab:
         )
 
         a, b, c, d = st.columns(4)
-        a.metric("Space Used", f"{float(plan['space_utilization']):.1f}%", f"{report['unused_space_percent']:.1f}% remains")
+        a.metric("Lorry Volume Used", f"{float(plan['space_utilization']):.1f}%", f"{report['unused_space_percent']:.1f}% remains")
         b.metric("Total Boxes", int(plan["total_boxes"]))
         c.metric("Loaded Weight", f"{float(plan['total_weight']):,.1f} kg")
         d.metric("Plan Status", "✓ Valid" if plan["validation_result"] == "Valid" else plan["validation_result"])
@@ -166,12 +160,13 @@ with report_tab:
 with analytics_tab:
     summary = analytics_summary()
     st.header("Loading Performance Overview", anchor=False)
-    a, b, c, d, e = st.columns(5)
-    a.metric("Loading Plans", summary["total_plans"])
-    b.metric("Average Space Used", f"{summary['avg_utilization']:.1f}%")
-    c.metric("Average Weight Used", f"{summary['avg_weight_utilization']:.1f}%")
-    d.metric("Best Space Used", f"{summary['max_utilization']:.1f}%")
-    e.metric("Boxes Loaded", summary["total_boxes"])
+    top_metrics = st.columns(3)
+    top_metrics[0].metric("Loading Plans", summary["total_plans"])
+    top_metrics[1].metric("Average Volume Used", f"{summary['avg_utilization']:.1f}%")
+    top_metrics[2].metric("Average Weight Used", f"{summary['avg_weight_utilization']:.1f}%")
+    lower_metrics = st.columns(2)
+    lower_metrics[0].metric("Best Volume Used", f"{summary['max_utilization']:.1f}%")
+    lower_metrics[1].metric("Boxes Loaded", summary["total_boxes"])
     st.info(
         f"Most-used lorry: {summary['most_used_lorry']} | Total loaded weight: {summary['total_weight']:,.1f} kg | "
         f"Plans below 40% space use: {summary['low_utilization_plans']}"
@@ -195,7 +190,7 @@ with analytics_tab:
         capacity_df["Capacity Type"] = capacity_df["Capacity Type"].map({
             "space_utilization": "Lorry volume", "weight_utilization": "Weight capacity",
         })
-        capacity_chart = alt.Chart(capacity_df).mark_bar(size=420, cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
+        capacity_chart = alt.Chart(capacity_df).mark_bar(size=34, cornerRadiusTopLeft=5, cornerRadiusTopRight=5).encode(
             x=alt.X("Loading Plan:N", title="Loading plan", sort=None, scale=alt.Scale(paddingInner=0.12, paddingOuter=0.06)),
             xOffset=alt.XOffset("Capacity Type:N", sort=["Lorry volume", "Weight capacity"], scale=alt.Scale(paddingInner=0, paddingOuter=0)),
             y=alt.Y("Percent Used:Q", title="Capacity used (%)", scale=alt.Scale(domain=[0, 100])),

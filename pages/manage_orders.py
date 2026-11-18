@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
 
 from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
+from components.display import friendly_datetime
 from components.navigation import staff_sidebar, require_staff
 from constants import ORDER_STATUSES
 from services.collection_point_service import list_collection_points
@@ -92,7 +93,7 @@ summary_rows = [{
     "Payment": o.get("payment_status") or "Not Paid",
     "Order Amount": f"RM {float(o.get('order_total_amount') or 0):,.2f}",
     "Collection Point": o.get("collection_point") or "Not assigned",
-    "Updated": o["updated_at"],
+    "Updated": friendly_datetime(o["updated_at"]),
 } for o in orders]
 st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
 
@@ -120,7 +121,7 @@ with left:
         st.markdown("#### Status History")
         for h in order["history"]:
             note = f" — {h['note']}" if h.get("note") else ""
-            st.caption(f"{h['updated_at']} · {h['status']} · {h['updated_by_name']}{note}")
+            st.caption(f"{friendly_datetime(h['updated_at'])} · {h['status']} · {h['updated_by_name']}{note}")
 
 if archived_view:
     with right:

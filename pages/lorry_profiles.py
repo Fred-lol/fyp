@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
 
 from bootstrap import bootstrap_app
 from components.cards import empty_state, metric_card
+from components.display import friendly_datetime
 from components.navigation import require_staff, staff_sidebar
 from components.theme import apply_theme, page_header
 from constants import LORRY_STATUSES
@@ -222,7 +223,7 @@ with manage_tab:
             "dimensions": f"{float(row['internal_length']):g} × {float(row['internal_width']):g} × {float(row['internal_height']):g} cm",
             "maximum_weight": f"{float(row['max_weight']):,.0f} kg",
             "status": row["status"],
-            "updated": row["updated_at"],
+            "updated": friendly_datetime(row["updated_at"]),
             "update": ":material/edit:",
             "delete": ":material/delete:",
         } for row in rows]

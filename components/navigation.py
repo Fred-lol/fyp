@@ -27,8 +27,18 @@ def _clear_session():
 
 def require_login():
     if not st.session_state.get("logged_in") or not st.session_state.get("user_id"):
-        st.info("Your session has ended. Please sign in again from the homepage.")
-        if st.button("Return to Homepage", type="primary"):
+        # Keep an expired session clear and contained instead of showing a
+        # page-wide alert banner. This is rendered before any portal content.
+        st.html("""
+        <section class="aq-session-card" role="status" aria-label="Session expired">
+          <div class="aq-session-icon" aria-hidden="true">&#128274;</div>
+          <div>
+            <div class="aq-session-title">Session Expired</div>
+            <p>Your session has ended. Please sign in again to continue.</p>
+          </div>
+        </section>
+        """)
+        if st.button("Back to Login", type="primary", key="session_expired_login"):
             st.switch_page("homepage.py")
         st.stop()
 
@@ -48,7 +58,7 @@ def customer_sidebar():
     require_role(ROLES["CUSTOMER"])
     with st.sidebar:
         st.html(
-            f'<div style="width:76px;margin:0 0 5px;pointer-events:none;user-select:none;">'
+            f'<div class="aq-sidebar-logo">'
             f'<img src="{_sidebar_logo_data_url()}" alt="AquaLoad" draggable="false" '
             'style="display:block;width:76px;height:auto;" /></div>'
         )
@@ -75,7 +85,7 @@ def staff_sidebar(keep_loading_preview=False):
     role = st.session_state.get("user_role")
     with st.sidebar:
         st.html(
-            f'<div style="width:76px;margin:0 0 5px;pointer-events:none;user-select:none;">'
+            f'<div class="aq-sidebar-logo">'
             f'<img src="{_sidebar_logo_data_url()}" alt="AquaLoad" draggable="false" '
             'style="display:block;width:76px;height:auto;" /></div>'
         )

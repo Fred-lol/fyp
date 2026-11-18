@@ -37,11 +37,11 @@ def seafood_image_source(product: dict, project_dir: Path) -> str:
 
 
 def seafood_card_image(product: dict, project_dir: Path, height: int = 260) -> str:
-    """Return a fixed, crop-safe image frame for seafood catalogue cards.
+    """Return a consistent fixed-ratio image frame for catalogue cards.
 
-    Uploaded images are stored with their product in PostgreSQL.  Each image
-    keeps its own proportions: it is never cropped and the card does not add
-    empty letterbox space around it.
+    The shared design system uses ``object-fit: cover`` inside this frame:
+    images retain their proportions with no distortion or letterboxing while
+    product-card rows remain aligned.
     """
     source = escape(seafood_image_source(product, project_dir), quote=True)
     name = escape(str(product.get("product_name") or "Seafood"), quote=True)

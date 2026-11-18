@@ -24,13 +24,14 @@ page_header(
 
 summary = staff_dashboard_summary()
 
-cols = st.columns(6)
-with cols[0]: metric_card("Active Orders", summary["active_orders"])
-with cols[1]: metric_card("Seafood Products", summary["seafood_products"])
-with cols[2]: metric_card("Low / No Stock", summary["low_or_no_stock"])
-with cols[3]: metric_card("Available Lorries", summary["available_lorries"])
-with cols[4]: metric_card("Available Boxes", summary["available_boxes"])
-with cols[5]: metric_card("Saved Plans", summary["saved_plans"])
+row_one = st.columns(3)
+with row_one[0]: metric_card("Active Orders", summary["active_orders"])
+with row_one[1]: metric_card("Seafood Products", summary["seafood_products"])
+with row_one[2]: metric_card("Low / No Stock", summary["low_or_no_stock"])
+row_two = st.columns(3)
+with row_two[0]: metric_card("Available Lorries", summary["available_lorries"])
+with row_two[1]: metric_card("Available Boxes", summary["available_boxes"])
+with row_two[2]: metric_card("Saved Plans", summary["saved_plans"])
 
 st.subheader("Quick Actions", anchor=False)
 r1 = st.columns(4)

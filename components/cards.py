@@ -3,7 +3,7 @@ import streamlit as st
 
 
 def metric_card(label, value, help_text=""):
-    safe_help = f'<div style="font-size:.72rem;color:#7892a3;margin-top:.25rem">{html.escape(str(help_text))}</div>' if help_text else ""
+    safe_help = f'<div class="aq-metric-help">{html.escape(str(help_text))}</div>' if help_text else ""
     st.html(f"""
     <div class="aq-card">
       <div class="aq-metric-label">{html.escape(str(label))}</div>

@@ -1,5 +1,6 @@
 import streamlit as st
 from components.alert_theme import ALERT_CSS, UI_FOUNDATION_CSS
+from components.design_system import PORTAL_CSS
 from components.feedback import render_flash
 
 LIGHT_VARS = """
@@ -9,6 +10,8 @@ LIGHT_VARS = """
   --aq-border:#d7e6ec; --aq-gold:#d8a441; --aq-coral:#df7055;
   --aq-input:#ffffff; --aq-input-border:#111827; --aq-sidebar1:#052c4c; --aq-sidebar2:#063c59;
   --aq-sidebar-text:#f3fbfd; --aq-table:#ffffff; --aq-soft:#eef8fa;
+  --aq-status-success-bg:#d9f5eb; --aq-status-success-text:#075f4d; --aq-status-warning-bg:#fff2cf; --aq-status-warning-text:#825700;
+  --aq-status-info-bg:#dff3fb; --aq-status-info-text:#075a7e; --aq-status-danger-bg:#fde3e5; --aq-status-danger-text:#992b32;
   --aq-primary-start:#087ead; --aq-primary-end:#0db4b9; --aq-on-primary:#ffffff;
   --aq-primary-shadow:rgba(0,135,155,.18); --aq-primary-hover-start:#076f9b; --aq-primary-hover-end:#0ba2a8;
   --background-color:#ffffff!important; --secondary-background-color:#f5fbfd!important;
@@ -22,6 +25,8 @@ DARK_VARS = """
   --aq-border:#315363; --aq-gold:#f0c46b; --aq-coral:#ff9a80;
   --aq-input:#102f40; --aq-input-border:#b8d1da; --aq-sidebar1:#03131f; --aq-sidebar2:#082b3a;
   --aq-sidebar-text:#f7fcfd; --aq-table:#0e2938; --aq-soft:#123342;
+  --aq-status-success-bg:#124e43; --aq-status-success-text:#a4f1d6; --aq-status-warning-bg:#5b4510; --aq-status-warning-text:#ffe09a;
+  --aq-status-info-bg:#104a66; --aq-status-info-text:#b7e9ff; --aq-status-danger-bg:#602b33; --aq-status-danger-text:#ffb8bd;
   --aq-primary-start:#35d2ca; --aq-primary-end:#4bdde2; --aq-on-primary:#042433;
   --aq-primary-shadow:rgba(53,210,202,.22); --aq-primary-hover-start:#57e2da; --aq-primary-hover-end:#75edf0;
   --background-color:#071a27!important; --secondary-background-color:#0e2938!important;
@@ -441,7 +446,7 @@ def _theme_css(preference: str) -> str:
         control_css = f"@media (prefers-color-scheme: dark){{{DARK_SEGMENTED_CONTROL_CSS}}}"
     # Semantic alert rules must be last because older compatibility rules in
     # BASE_CSS intentionally target broad Streamlit alert selectors.
-    return f"<style>{root}{BASE_CSS}{control_css}{UI_FOUNDATION_CSS}{ALERT_CSS}</style>"
+    return f"<style>{root}{BASE_CSS}{control_css}{UI_FOUNDATION_CSS}{PORTAL_CSS}{ALERT_CSS}</style>"
 
 
 def apply_theme(preference=None):

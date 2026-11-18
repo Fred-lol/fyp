@@ -12,6 +12,7 @@ from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
 from components.navigation import customer_sidebar
 from components.cards import metric_card, empty_state
+from components.display import friendly_datetime
 from services.order_service import list_customer_orders
 
 bootstrap_app()
@@ -71,7 +72,7 @@ else:
         rows.append(
             {
                 "Order": f"#{order['order_id']}",
-                "Order Date": order["order_date"],
+                "Order Date": friendly_datetime(order["order_date"]),
                 "Items": int(order.get("item_count") or 0),
                 "Total Weight": f"{float(order.get('total_weight_kg') or 0):g} kg",
                 "Payment": order.get("payment_status") or "Not Paid",

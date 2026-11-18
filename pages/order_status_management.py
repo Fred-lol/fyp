@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
 
 from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
+from components.display import friendly_datetime
 from components.navigation import staff_sidebar, require_staff
 from components.feedback import flash
 from services.order_service import list_all_orders, get_order, allowed_next_statuses, update_order_status
@@ -34,7 +35,7 @@ rows = [{
     "Current Status": o["status"],
     "Weight": f"{float(o['total_weight_kg']):g} kg",
     "Collection Point": o.get("collection_point") or "Not assigned",
-    "Last Updated": o["updated_at"],
+    "Last Updated": friendly_datetime(o["updated_at"]),
 } for o in orders]
 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
@@ -68,7 +69,7 @@ with right:
         st.markdown("### Tracking Records")
         for idx, h in enumerate(order["history"], start=1):
             st.markdown(f"**{idx}. {h['status']}**")
-            st.caption(f"{h['updated_at']} · {h['updated_by_name']}")
+            st.caption(f"{friendly_datetime(h['updated_at'])} · {h['updated_by_name']}")
             if h.get("note"):
                 st.write(h["note"])
             if idx != len(order["history"]):

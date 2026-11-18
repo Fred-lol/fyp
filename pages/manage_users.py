@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
 
 from bootstrap import bootstrap_app
 from components.cards import empty_state, metric_card
+from components.display import friendly_datetime
 from components.navigation import require_staff, staff_sidebar
 from components.theme import apply_theme, page_header
 from constants import ROLES, USER_STATUSES
@@ -192,7 +193,7 @@ for user in rows:
         "phone_number": user["phone_number"],
         "role": user["role"],
         "status": user["status"],
-        "created_at": user["created_at"],
+        "created_at": friendly_datetime(user["created_at"]),
         "update": ":material/edit:",
         "delete": ":material/delete:",
     })
