@@ -130,8 +130,16 @@ def generate_plan(lorry, boxes):
     if not boxes:
         return {"success": False, "message": "No boxes were provided for optimization."}
     total_weight = sum(float(box["loaded_weight"]) for box in boxes)
-    if total_weight > float(lorry["max_weight"]):
-        return {"success": False, "message": "Selected orders exceed the lorry maximum weight capacity."}
+    maximum_weight = float(lorry["max_weight"] or 0)
+    if total_weight > maximum_weight + 1e-9:
+        return {
+            "success": False,
+            "message": (
+                f"{lorry.get('plate_number', 'Selected lorry')} cannot be used: selected orders total "
+                f"{total_weight:,.0f} kg, but its maximum is {maximum_weight:,.0f} kg "
+                f"({total_weight - maximum_weight:,.0f} kg over capacity)."
+            ),
+        }
 
     strategies = (
         ("largest_first", "depth_first"),

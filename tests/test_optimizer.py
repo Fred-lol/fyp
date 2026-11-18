@@ -14,9 +14,12 @@ class OptimizerTests(unittest.TestCase):
         self.assertTrue(ok,errors)
 
     def test_weight_failure(self):
-        lorry={"internal_length":200.0,"internal_width":100.0,"internal_height":100.0,"max_weight":10.0}
+        lorry={"plate_number":"TEST 1","internal_length":200.0,"internal_width":100.0,"internal_height":100.0,"max_weight":10.0}
         boxes=[{"order_id":1,"box_profile_id":1,"box_instance":1,"box_name":"Heavy","length":50.0,"width":40.0,"height":30.0,"loaded_weight":20.0}]
         result=generate_plan(lorry,boxes)
         self.assertFalse(result["success"])
+        self.assertIn("20 kg", result["message"])
+        self.assertIn("10 kg", result["message"])
+        self.assertIn("over capacity", result["message"])
 
 if __name__ == "__main__": unittest.main()

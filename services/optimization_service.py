@@ -115,7 +115,33 @@ def save_optimization(result, created_by, mark_loaded=False):
         return False, "Only a valid loading plan can be saved.", None
     m = result["metrics"]
     lorry = result["lorry"]
+    planned_weight = sum(float(p.get("loaded_weight") or 0) for p in result.get("placements", []))
     with db_session() as conn:
+        # Re-check against the live lorry record immediately before saving.
+        # A preview may be stale if staff changed the lorry or its capacity in
+        # another session, so the database write must never rely on UI state.
+        current_lorry = conn.execute(
+            "SELECT lorry_id, plate_number, max_weight, status FROM lorry_profiles WHERE lorry_id=?",
+            (lorry["lorry_id"],),
+        ).fetchone()
+        if not current_lorry:
+            return False, "The selected lorry no longer exists. Choose another available lorry.", None
+
+        live_capacity = float(current_lorry["max_weight"] or 0)
+        if planned_weight > live_capacity + 1e-9:
+            excess_weight = planned_weight - live_capacity
+            return False, (
+                f"Loading plan not saved: {current_lorry['plate_number']} can carry up to "
+                f"{live_capacity:,.0f} kg, but the selected orders total {planned_weight:,.0f} kg "
+                f"({excess_weight:,.0f} kg over capacity). Choose a larger lorry or remove orders."
+            ), None
+
+        if mark_loaded and current_lorry["status"] != "Available":
+            return False, (
+                f"Loading plan not saved: {current_lorry['plate_number']} is currently "
+                f"{current_lorry['status']}. Choose an available lorry."
+            ), None
+
         if mark_loaded:
             for order_id in result["order_ids"]:
                 order = conn.execute(
@@ -135,8 +161,8 @@ def save_optimization(result, created_by, mark_loaded=False):
             (
                 lorry["lorry_id"], result.get("collection_point_id"), created_by,
                 m["total_boxes"], m["lorry_volume"], m["used_volume"],
-                m["remaining_volume"], m["space_utilization"], m["total_weight"],
-                m["remaining_weight_capacity"],
+                m["remaining_volume"], m["space_utilization"], planned_weight,
+                max(live_capacity - planned_weight, 0.0),
             ),
         )
         plan_id = cur.lastrowid
