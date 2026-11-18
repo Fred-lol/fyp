@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 import re
 
 from database.db import db_session
@@ -22,6 +22,19 @@ MALAYSIAN_BANKS = [
 MALAYSIAN_EWALLETS = [
     "Touch 'n Go eWallet", "GrabPay", "Boost", "ShopeePay", "MAE",
 ]
+DEMO_TEST_CARDS = {"4242424242424242", "5555555555554444", "378282246310005"}
+
+
+def _luhn(number):
+    total = 0
+    for index, digit in enumerate(reversed(number)):
+        value = int(digit)
+        if index % 2:
+            value *= 2
+            if value > 9:
+                value -= 9
+        total += value
+    return total % 10 == 0
 
 
 def _valid_malaysian_mobile(value):
@@ -40,6 +53,27 @@ def validate_payment_details(payment_method, details):
     errors = {}
     if payment_method not in PAYMENT_METHODS:
         return {"method": "Select a demo payment method."}
+    if payment_method == "Credit / Debit Card":
+        name = str(details.get("cardholder") or "").strip()
+        number = re.sub(r"[ -]", "", str(details.get("card_number") or ""))
+        expiry = str(details.get("expiry") or "").strip()
+        cvv = str(details.get("cvv") or "").strip()
+        if not 2 <= len(name) <= 80 or not re.fullmatch(r"[A-Za-z][A-Za-z .'-]*", name):
+            errors["cardholder"] = "Enter the name on the test card (2–80 letters)."
+        if not number.isascii() or not number.isdigit() or len(number) not in (15, 16) or not _luhn(number):
+            errors["card_number"] = "Enter a valid 15 or 16 digit test card number."
+        elif number not in DEMO_TEST_CARDS:
+            errors["card_number"] = "Only the example test cards shown below are accepted. Do not enter a real card."
+        match = re.fullmatch(r"(0[1-9]|1[0-2])/([0-9]{2})", expiry)
+        if not match:
+            errors["expiry"] = "Use a valid expiry in MM/YY format."
+        else:
+            year, month = 2000 + int(match[2]), int(match[1])
+            today = date.today()
+            if (year, month) < (today.year, today.month):
+                errors["expiry"] = "Use the current month or a future expiry."
+        if not re.fullmatch(r"[0-9]{4}" if number.startswith("3782") else r"[0-9]{3}", cvv):
+            errors["cvv"] = "Enter a 4 digit test CVV for Amex, or 3 digits for Visa/Mastercard."
     if payment_method == "Online Banking (FPX)" and details.get("bank") not in MALAYSIAN_BANKS:
         errors["bank"] = "Select a supported Malaysian bank."
     if payment_method == "E-Wallet":

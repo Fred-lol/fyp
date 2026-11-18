@@ -26,8 +26,11 @@ st.html("""<style>
 .st-key-checkout_summary,.st-key-checkout_payment{padding:24px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important}
 .st-key-checkout_payment [data-testid="stForm"]{border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important}
 .st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"]{display:grid!important;grid-template-columns:1fr 1fr;gap:10px!important}
-.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label{border:1px solid var(--aq-border);padding:12px!important;border-radius:8px;background:var(--aq-card2);margin:0!important;min-width:0}
-.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){border-color:var(--aq-teal)}
+.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label{border:1px solid var(--aq-border);padding:16px!important;border-radius:10px;background:var(--aq-card2);margin:0!important;min-width:0;cursor:pointer;min-height:60px;display:flex;align-items:center}
+.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){border-color:var(--aq-teal);background:color-mix(in srgb,var(--aq-teal) 10%,var(--aq-card))}
+.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label [data-testid="stMarkdownContainer"] p{margin:0!important;font-weight:650!important}
+.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label [data-baseweb="radio"]>div:first-child{position:absolute!important;width:1px!important;height:1px!important;clip-path:inset(50%)!important;overflow:hidden!important}
+.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label:focus-within{outline:2px solid var(--aq-teal);outline-offset:2px}
 .aq-checkout-total{display:flex;justify-content:space-between;align-items:baseline;padding:20px 0;color:var(--aq-text)}.aq-checkout-total strong{font-size:24px}
 .aq-demo-qr{padding:20px;border:1px dashed var(--aq-border);border-radius:8px;text-align:center;color:var(--aq-text);background:var(--aq-card2)}.aq-demo-qr svg{display:block;margin:0 auto 12px;width:100px;height:100px;color:var(--aq-teal)}
 @media(max-width:600px){.st-key-checkout_summary,.st-key-checkout_payment{padding:16px!important}.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"]{grid-template-columns:1fr}}
@@ -68,14 +71,25 @@ def submit_demo_order(cart, point_id, method, details):
 
 def render_payment(cart, point_id, total):
     labels = {'Credit / Debit Card':'Credit / Debit Card', 'Online Banking (FPX)':'FPX Online Banking', 'DuitNow QR':'DuitNow QR', 'E-Wallet':'E-Wallet'}
-    method = st.radio('Demo payment method', PAYMENT_METHODS, index=None, key='payment_method', format_func=labels.get)
+    method = st.radio('Demo payment method', PAYMENT_METHODS, index=None, key='payment_method', format_func=labels.get, horizontal=False)
     errors = st.session_state.get('payment_errors', {})
     field_error(errors, 'method')
     with st.form('demo_payment_form', border=False):
         details = {}
         if method == 'Credit / Debit Card':
-            st.subheader('Card demo', anchor=False)
-            st.caption('Simulate a card checkout without entering card details.')
+            st.caption('Test cards only. Never enter a real card number or security code. No payment is processed.')
+            details['cardholder'] = st.text_input('Cardholder name (test)', placeholder='Test Customer', key='payment_cardholder', autocomplete='off')
+            field_error(errors, 'cardholder')
+            details['card_number'] = st.text_input('Test card number', placeholder='4242 4242 4242 4242', key='payment_card_number', autocomplete='off')
+            field_error(errors, 'card_number')
+            st.caption('Examples: Visa 4242 4242 4242 4242 · Mastercard 5555 5555 5555 4444 · Amex 3782 822463 10005')
+            exp_col, cvv_col = st.columns(2)
+            with exp_col:
+                details['expiry'] = st.text_input('Expiry (MM/YY)', placeholder='MM/YY', max_chars=5, key='payment_expiry', autocomplete='off')
+                field_error(errors, 'expiry')
+            with cvv_col:
+                details['cvv'] = st.text_input('Test CVV', placeholder='123', max_chars=4, type='password', key='payment_cvv', autocomplete='off')
+                field_error(errors, 'cvv')
         elif method == 'Online Banking (FPX)':
             details['bank'] = st.selectbox('Malaysian bank', MALAYSIAN_BANKS, index=None, placeholder='Search or select your bank', key='payment_bank')
             field_error(errors, 'bank')
@@ -124,6 +138,8 @@ if order_id := st.session_state.pop('payment_success_pending', None):
     st.session_state.checkout_cart = None
     st.session_state.cart = {}
     for key in ('checkout_fingerprint','checkout_snapshot','checkout_points','payment_errors'):
+        st.session_state.pop(key,None)
+    for key in ('payment_cardholder','payment_card_number','payment_expiry','payment_cvv','payment_wallet_mobile'):
         st.session_state.pop(key,None)
     st.switch_page('pages/payment_success.py')
     st.stop()

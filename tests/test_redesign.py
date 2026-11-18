@@ -16,7 +16,7 @@ def test_invalid_mobile(number):
     assert not payment._valid_malaysian_mobile(number)
 
 @pytest.mark.parametrize("method,details", [
- ('Credit / Debit Card', {}), ('Online Banking (FPX)', {'bank':'Maybank2u'}),
+ ('Credit / Debit Card', {'cardholder':'Test Customer','card_number':'4242 4242 4242 4242','expiry':'12/29','cvv':'123'}), ('Online Banking (FPX)', {'bank':'Maybank2u'}),
  ('DuitNow QR',{}), ('E-Wallet',{'wallet':'Boost','mobile':'01112345678'})])
 def test_demo_methods(method,details):
     assert 'demo_confirmed' in payment.validate_payment_details(method, details)
@@ -27,6 +27,20 @@ def test_demo_methods(method,details):
  ('E-Wallet',{'wallet':'Fake','mobile':'0123456789'},'wallet'),('E-Wallet',{'wallet':'Boost','mobile':''},'mobile')])
 def test_invalid_demo_selection(method, details, field):
     assert field in payment.validate_payment_details(method,dict(details,demo_confirmed=True))
+
+@pytest.mark.parametrize('field,value', [
+    ('card_number','4111111111111111'),
+    ('card_number','4242424242424241'),
+    ('card_number','123'),
+    ('cardholder',''),
+    ('expiry','01/20'),
+    ('expiry','13/29'),
+    ('cvv','12'),
+])
+def test_invalid_test_card_fields(field,value):
+    details={'cardholder':'Test Customer','card_number':'4242424242424242','expiry':'12/29','cvv':'123','demo_confirmed':True}
+    details[field]=value
+    assert field in payment.validate_payment_details('Credit / Debit Card',details)
 
 class Result:
     def __init__(self, value): self.value=value
@@ -105,8 +119,8 @@ def test_active_renderers_replaced():
     checkout=Path('pages/payment.py').read_text(encoding='utf-8')
     assert 'product_card(product' in catalogue and 'seafood-card-' not in catalogue
     assert 'alt.Chart' not in reports and 'st.altair_chart' not in reports
-    for sensitive in ['payment_card_number','payment_card_expiry','payment_card_cvv']:
-        assert sensitive not in checkout
+    assert 'payment_card_number' in checkout and 'payment_expiry' in checkout
+    assert 'st.radio(' in checkout and '[data-baseweb="radio"]' in checkout
     for page in ['homepage.py','pages/about_aquaload.py','pages/who_we_serve.py']:
         source=Path(page).read_text(encoding='utf-8')
         assert 'render_homepage_header(' in source and 'render_homepage_footer(' in source

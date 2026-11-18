@@ -98,15 +98,16 @@ def _variants():
 PANEL_CSS = """
 /* Streamlit puts role=status/alert on this inner panel. Leave the outer
    stAlert element alone so its live-region semantics and spacing survive. */
+[data-testid="stAlert"]{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;overflow:visible!important}
 [data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]), .aq-notice {
     display: flex;
     align-items: flex-start;
     gap: 11px;
     box-sizing: border-box;
     width: 100%;
-    max-width: 78ch;
+    max-width: none;
     margin: 0;
-    padding: 15px;
+    padding: 12px 14px;
     border: 1px solid var(--line);
     border-radius: 9px;
     background: var(--surface);

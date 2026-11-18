@@ -185,7 +185,7 @@ def render_analytics(plans):
     with right:
         st.subheader("Lorry Usage", anchor=False)
         counts = df.groupby("plate_number").size()
-        render_chart(bar_chart(counts.index.tolist(), counts.tolist(), "Loading plans", counts=True, color=BLUE), "analytics_lorries")
+        render_chart(bar_chart(counts.index.tolist(), counts.tolist(), "Loading plans", horizontal=True, counts=True, color=BLUE), "analytics_lorries")
     st.subheader("Collection Point Usage", anchor=False)
     counts = df.groupby("collection_point").size().sort_values(ascending=False)
     render_chart(bar_chart(counts.index.tolist(), counts.tolist(), "Loading plans", horizontal=True, counts=True), "analytics_points")

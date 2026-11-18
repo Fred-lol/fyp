@@ -11,15 +11,15 @@ COMMERCE_CSS = """
 .st-key-catalogue_grid [class*="st-key-product_"] [data-testid="stVerticalBlock"]{gap:12px!important}
 .st-key-catalogue_grid .aq-seafood-card-image{width:100%;overflow:hidden;line-height:0;height:auto!important;aspect-ratio:4/3;border:0!important;border-radius:8px!important}
 .st-key-catalogue_grid .aq-seafood-card-image img{display:block;width:100%!important;max-height:none!important;height:100%!important;object-fit:cover!important}
-.aq-product-heading{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;margin-top:16px;height:52px}
+.aq-product-heading{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;margin-top:12px;min-height:52px}
 .aq-product-heading h3{font-size:18px!important;line-height:1.4!important;margin:0!important;padding:0!important;color:var(--aq-text)!important;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .aq-stock-dot{font-size:12px;white-space:nowrap;color:var(--aq-muted);padding-top:4px}.aq-stock-dot::before{content:'●';color:var(--aq-teal);margin-right:4px}
-.aq-product-meta{font-size:13px;line-height:1.5;color:var(--aq-muted);height:40px;overflow:hidden}
-.aq-product-copy{font-size:14px;line-height:1.5;color:var(--aq-text);height:63px;margin:12px 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.aq-product-meta{font-size:13px;line-height:1.5;color:var(--aq-muted);min-height:39px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.aq-product-copy{font-size:14px;line-height:1.5;color:var(--aq-text);height:63px;margin:8px 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .aq-product-pricing{display:flex;gap:8px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;min-height:52px;border-bottom:1px solid var(--aq-border);padding-bottom:12px}
 .aq-product-pricing strong{font-size:21px;color:var(--aq-text)}.aq-product-pricing small{font-size:13px;color:var(--aq-muted)}
 .st-key-catalogue_grid [data-testid="stForm"]{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
-.st-key-catalogue_grid [data-testid="stFormSubmitButton"] button{box-shadow:none!important;background:var(--aq-teal)!important;min-height:44px!important}
+.st-key-catalogue_grid [data-testid="stFormSubmitButton"] button{box-shadow:none!important;background:var(--aq-primary-start)!important;color:var(--aq-on-primary)!important;min-height:44px!important}
 .st-key-cart_panel{width:min(420px,calc(100vw - 64px));max-width:100%;padding:4px!important}
 .st-key-cart_panel [class*="st-key-cart_line_"]{padding:16px 0!important;border-bottom:1px solid var(--aq-border)}
 .aq-cart-line-title{display:flex;justify-content:space-between;gap:16px;font-size:15px;color:var(--aq-text)}

@@ -29,6 +29,7 @@ html,body{font-family:Inter,"Segoe UI",Arial,sans-serif!important;overflow-x:hid
 .aq-metric-label,[data-testid="stMetricLabel"] p{color:var(--aq-muted)!important;font-size:.72rem!important;font-weight:800!important;letter-spacing:.065em!important;text-transform:uppercase!important}
 .aq-metric-value,[data-testid="stMetricValue"]{color:var(--aq-navy)!important;font-size:1.85rem!important;font-weight:800!important;line-height:1.15!important}
 [data-testid="stMain"] [data-testid="stMetricValue"] p{font-size:1.85rem!important;line-height:1.15!important;color:var(--aq-navy)!important}
+[data-testid="stMetricValue"],[data-testid="stMetricValue"]>div,[data-testid="stMetricValue"] p{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important}
 .aq-metric-help{color:var(--aq-muted)!important;font-size:.8rem!important;line-height:1.45!important;margin-top:6px!important}
 .aq-note,.aq-soft-panel{background:var(--aq-card2)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important;color:var(--aq-muted)!important}
 

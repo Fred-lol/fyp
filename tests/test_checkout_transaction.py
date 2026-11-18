@@ -47,7 +47,7 @@ def checkout_db(monkeypatch):
         raw.close()
 
 @pytest.mark.parametrize('method,details',[
- ('Credit / Debit Card',{}),('Online Banking (FPX)',{'bank':'Maybank2u'}),
+ ('Credit / Debit Card',{'cardholder':'Test Customer','card_number':'4242424242424242','expiry':'12/29','cvv':'123'}),('Online Banking (FPX)',{'bank':'Maybank2u'}),
  ('DuitNow QR',{}),('E-Wallet',{'wallet':'Boost','mobile':'01112345678'})])
 def test_real_demo_order_and_retry(checkout_db,method,details):
     token=str(uuid4()); details=dict(details,demo_confirmed=True)
