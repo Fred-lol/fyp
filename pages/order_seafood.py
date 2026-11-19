@@ -13,7 +13,7 @@ if str(PROJECT_DIR) not in sys.path:
 from bootstrap import bootstrap_app
 from components.cards import empty_cart
 from components.navigation import customer_sidebar
-from components.commerce import COMMERCE_CSS, product_card
+from components.commerce import COMMERCE_CSS, product_card, product_details
 from components.theme import apply_theme, page_header
 from constants import MIN_WHOLESALE_ORDER_KG
 from services.order_service import list_products, product_categories
@@ -60,6 +60,11 @@ def _add_product_to_cart(product_id: int, product_name: str) -> None:
         st.session_state.catalogue_feedback = f"{product_name} {verb}."
         st.session_state.cart[product_id] = quantity
         st.session_state[f"cart_popover_quantity_{product_id}"] = quantity
+        st.query_params.pop("product", None)
+
+
+def _back_to_catalogue() -> None:
+    st.query_params.pop("product", None)
 
 
 def _cart_quantity_available(product_id, quantity):
@@ -82,9 +87,11 @@ def _cart_quantity_available(product_id, quantity):
 def ordering_workspace() -> None:
     filters, category_filter, cart_action = st.columns([2.2, 1, .58], vertical_alignment="bottom")
     with filters:
-        search = st.text_input("Search seafood", placeholder="Search by seafood name")
+        search = st.text_input("Search seafood", placeholder="Search by seafood name", value=st.query_params.get("search", ""), key="catalogue_search")
     with category_filter:
-        category = st.selectbox("Category", ["All"] + product_categories())
+        categories = ["All"] + product_categories()
+        saved_category = st.query_params.get("category", "All")
+        category = st.selectbox("Category", categories, index=categories.index(saved_category) if saved_category in categories else 0, key="catalogue_category")
     with cart_action:
         cart_summary = checkout_summary(list(st.session_state.cart.items()))
         with st.popover(f"Cart ({len(cart_summary['items'])})", icon=":material/shopping_cart:", help="Review cart", use_container_width=True):
@@ -131,9 +138,20 @@ def ordering_workspace() -> None:
         st.info("No seafood is currently available for this search or category. Please check again after stock is replenished.")
         return
 
+    selected_id = st.query_params.get("product")
+    if selected_id is not None:
+        selected = next((product for product in products if str(product["product_id"]) == str(selected_id)), None)
+        if selected is None:
+            st.error("This seafood is no longer available. Return to the catalogue to choose another item.")
+            st.button("Back to Catalogue", on_click=_back_to_catalogue)
+            return
+        st.button("Back to Catalogue", icon=":material/arrow_back:", on_click=_back_to_catalogue, key="back_to_catalogue")
+        product_details(selected, PROJECT_DIR, _add_product_to_cart)
+        return
+
     with st.container(key="catalogue_grid"):
         for product in products:
-            product_card(product, PROJECT_DIR, _add_product_to_cart)
+            product_card(product, PROJECT_DIR, search=search, category=category)
 
 
 

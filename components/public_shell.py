@@ -3,18 +3,24 @@ from base64 import b64encode
 from datetime import date
 from pathlib import Path
 import streamlit as st
-from components.theme import apply_theme
+from components.theme import LIGHT_VARS
+
+PUBLIC_THEME_CSS = f"""<style>
+:root{{{LIGHT_VARS}}}
+html,body,.stApp,[data-testid="stAppViewContainer"]{{background:#fff!important;color:#082e4b!important}}
+.stApp{{font-family:Inter,"Segoe UI",Arial,sans-serif}}
+</style>"""
 
 PUBLIC_CSS = """
 <style>
 [data-testid="stSidebar"],header[data-testid="stHeader"]{display:none!important}
-[data-testid="stAppViewContainer"]:has(.aq-public-header),.stApp:has(.aq-public-header){background:var(--aq-bg)!important}
+[data-testid="stAppViewContainer"]:has(.aq-public-header),.stApp:has(.aq-public-header){background:#fff!important;color:#082e4b!important}
 [data-testid="stMainBlockContainer"]{max-width:1280px!important;padding:0 28px 28px!important}
 .aq-public-header{height:76px;box-sizing:border-box;width:100vw;margin:0 0 40px calc(50% - 50vw);border-bottom:1px solid var(--aq-border);background:var(--aq-bg)}
 .aq-public-header-inner{height:100%;max-width:1280px;padding:0 28px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:24px;box-sizing:border-box}
 .aq-public-header img{width:172px;height:54px;object-fit:contain}.aq-public-links{display:flex;gap:27px;align-items:center}
-.aq-public-header a{color:var(--aq-text)!important;text-decoration:none!important;font-size:15px;font-weight:600}
-.aq-public-header a[aria-current="page"],.aq-public-header a:hover{color:var(--aq-teal)!important}
+.aq-public-header a{color:#082e4b!important;text-decoration:none!important;font-size:15px;font-weight:600}
+.aq-public-header a[aria-current="page"],.aq-public-header a:hover{color:#008c95!important}
 .aq-public-header a.aq-staff-entry{background:#063b63!important;color:#fff!important;padding:11px 17px;border-radius:7px;white-space:nowrap}.aq-public-header a.aq-staff-entry:hover{background:#087ead!important;color:#fff!important}
 .aq-public-header details{display:none}.aq-public-header summary{cursor:pointer;color:var(--aq-text);font-size:15px}
 .aq-public-footer{box-sizing:border-box;width:100vw;margin:56px 0 0 calc(50% - 50vw);background:#062838;color:#c4dce5;font-size:13px}
@@ -46,7 +52,7 @@ PUBLIC_CSS = """
 
 
 def render_homepage_header(*, active="Home", standalone=True):
-    apply_theme()
+    st.markdown(PUBLIC_THEME_CSS, unsafe_allow_html=True)
     st.html(PUBLIC_CSS)
     logo = b64encode((Path(__file__).resolve().parents[1] / "AquaLoad.png").read_bytes()).decode()
     links = [("Home","/"),("About AquaLoad","/about_aquaload"),("Who We Serve","/who_we_serve"),("Staff Entry","/staff_login")]
