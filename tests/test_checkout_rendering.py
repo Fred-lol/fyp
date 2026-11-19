@@ -37,7 +37,13 @@ def test_checkout_ui_validation_and_single_summary(monkeypatch, method):
     press()
     assert calls['submit']==0
     assert 'collection_point' in app.session_state['payment_errors']
-    app.radio(key='payment_method').set_value(method).run()
+    method_keys = {
+        'Credit / Debit Card': 'card',
+        'Online Banking (FPX)': 'fpx',
+        'DuitNow QR': 'duitnow',
+        'E-Wallet': 'wallet',
+    }
+    app.button(key=f"payment_method_select_{method_keys[method]}").click().run()
     app.selectbox(key='payment_point_id').set_value(1).run()
     press()
     assert 'demo_confirmed' in app.session_state['payment_errors']

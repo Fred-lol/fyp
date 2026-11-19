@@ -117,10 +117,22 @@ def test_active_renderers_replaced():
     catalogue=Path('pages/order_seafood.py').read_text(encoding='utf-8')
     reports=Path('pages/reports_analytics.py').read_text(encoding='utf-8')
     checkout=Path('pages/payment.py').read_text(encoding='utf-8')
-    assert 'product_card(product' in catalogue and 'seafood-card-' not in catalogue
+    assert 'product_card(' in catalogue and 'seafood-card-' not in catalogue
     assert 'alt.Chart' not in reports and 'st.altair_chart' not in reports
     assert 'payment_card_number' in checkout and 'payment_expiry' in checkout
-    assert 'st.radio(' in checkout and '[data-baseweb="radio"]' in checkout
+    assert 'payment_method_select_' in checkout and 'st.radio(' not in checkout
     for page in ['homepage.py','pages/about_aquaload.py','pages/who_we_serve.py']:
         source=Path(page).read_text(encoding='utf-8')
         assert 'render_homepage_header(' in source and 'render_homepage_footer(' in source
+    shell=Path('components/public_shell.py').read_text(encoding='utf-8')
+    assert 'def render_sample_plan' in shell
+    assert 'aq-public-main' in shell and 'prefers-color-scheme' not in shell
+
+
+def test_catalogue_details_remain_in_authenticated_page_session():
+    catalogue=Path('pages/order_seafood.py').read_text(encoding='utf-8')
+    open_handler=catalogue.split('def _open_product_details',1)[1].split('def _back_to_catalogue',1)[0]
+    assert 'st.switch_page(' not in open_handler
+    assert 'require_role(ROLES["CUSTOMER"])' in catalogue
+    assert 'selected = get_product(int(selected_id))' in catalogue
+    assert 'favorite_product_ids' in catalogue

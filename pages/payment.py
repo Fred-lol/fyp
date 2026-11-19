@@ -25,15 +25,13 @@ page_header("Review & place your order", "Choose your collection point and compl
 st.html("""<style>
 .st-key-checkout_summary,.st-key-checkout_payment{padding:24px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important}
 .st-key-checkout_payment [data-testid="stForm"]{border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important}
-.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"]{display:grid!important;grid-template-columns:1fr 1fr;gap:10px!important}
-.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label{border:1px solid var(--aq-border);padding:16px!important;border-radius:10px;background:var(--aq-card2);margin:0!important;min-width:0;cursor:pointer;min-height:60px;display:flex;align-items:center}
-.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label:has(input:checked){border-color:var(--aq-teal);background:color-mix(in srgb,var(--aq-teal) 10%,var(--aq-card))}
-.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label [data-testid="stMarkdownContainer"] p{margin:0!important;font-weight:650!important}
-.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label [data-baseweb="radio"]>div:first-child{position:absolute!important;width:1px!important;height:1px!important;clip-path:inset(50%)!important;overflow:hidden!important}
-.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"] label:focus-within{outline:2px solid var(--aq-teal);outline-offset:2px}
+.st-key-payment_method_choices{display:grid!important;grid-template-columns:1fr 1fr;gap:10px!important;margin:8px 0 18px}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{width:100%!important;min-height:64px!important;padding:12px 14px!important;justify-content:flex-start!important;text-align:left!important;white-space:normal!important;line-height:1.3!important;background:var(--aq-card2)!important;color:var(--aq-text)!important;border:1px solid var(--aq-border)!important;border-radius:10px!important;box-shadow:none!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button:hover{border-color:var(--aq-teal)!important;transform:translateY(-1px)!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button *{color:inherit!important}
 .aq-checkout-total{display:flex;justify-content:space-between;align-items:baseline;padding:20px 0;color:var(--aq-text)}.aq-checkout-total strong{font-size:24px}
 .aq-demo-qr{padding:20px;border:1px dashed var(--aq-border);border-radius:8px;text-align:center;color:var(--aq-text);background:var(--aq-card2)}.aq-demo-qr svg{display:block;margin:0 auto 12px;width:100px;height:100px;color:var(--aq-teal)}
-@media(max-width:600px){.st-key-checkout_summary,.st-key-checkout_payment{padding:16px!important}.st-key-checkout_payment [data-testid="stRadio"] [role="radiogroup"]{grid-template-columns:1fr}}
+@media(max-width:600px){.st-key-checkout_summary,.st-key-checkout_payment{padding:16px!important}.st-key-payment_method_choices{grid-template-columns:1fr}}
 </style>""")
 
 
@@ -69,11 +67,49 @@ def submit_demo_order(cart, point_id, method, details):
         st.session_state.checkout_busy = False
 
 
+def choose_payment_method(method):
+    """Select a payment card and require a fresh demo acknowledgement."""
+    if method != st.session_state.get("payment_method"):
+        st.session_state.payment_method = method
+        st.session_state.payment_errors = {}
+        for selected_method in PAYMENT_METHODS:
+            st.session_state[f"demo_confirmed_{selected_method}"] = False
+
+
 def render_payment(cart, point_id, total):
-    labels = {'Credit / Debit Card':'Credit / Debit Card', 'Online Banking (FPX)':'FPX Online Banking', 'DuitNow QR':'DuitNow QR', 'E-Wallet':'E-Wallet'}
-    method = st.radio('Demo payment method', PAYMENT_METHODS, index=None, key='payment_method', format_func=labels.get, horizontal=False)
+    labels = {
+        'Credit / Debit Card': ('card', ':material/credit_card:', 'Credit / Debit Card'),
+        'Online Banking (FPX)': ('fpx', ':material/account_balance:', 'FPX Online Banking'),
+        'DuitNow QR': ('duitnow', ':material/qr_code_2:', 'DuitNow QR'),
+        'E-Wallet': ('wallet', ':material/account_balance_wallet:', 'E-Wallet'),
+    }
+    method = st.session_state.get('payment_method')
+    with st.container(key='payment_method_choices'):
+        st.markdown('**Choose a demo payment method**')
+        # Pair the four card actions in two responsive rows. They are native
+        # buttons, so selection is keyboard accessible without visible radios.
+        first_row = st.columns(2)
+        second_row = st.columns(2)
+        for column, payment_method in zip(first_row + second_row, PAYMENT_METHODS):
+            slug, icon, label = labels[payment_method]
+            with column:
+                st.button(
+                    label,
+                    key=f'payment_method_select_{slug}',
+                    icon=icon,
+                    help=f'Select {label}',
+                    on_click=choose_payment_method,
+                    args=(payment_method,),
+                    use_container_width=True,
+                )
+    # Explicit class selector styles selected as Streamlit's card button itself.
+    if method in labels:
+        selected_slug = labels[method][0]
+        st.html(f'<style>.st-key-checkout_payment .st-key-payment_method_choices .st-key-payment_method_select_{selected_slug} button{{background:color-mix(in srgb,var(--aq-teal) 12%,var(--aq-card))!important;color:var(--aq-navy)!important;border:2px solid var(--aq-teal)!important;box-shadow:0 3px 12px color-mix(in srgb,var(--aq-teal) 12%,transparent)!important}}</style>')
     errors = st.session_state.get('payment_errors', {})
     field_error(errors, 'method')
+    if method is None:
+        st.info('Choose a payment method to see its required demo information.')
     with st.form('demo_payment_form', border=False):
         details = {}
         if method == 'Credit / Debit Card':

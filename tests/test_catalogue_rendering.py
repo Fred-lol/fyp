@@ -1,0 +1,98 @@
+from pathlib import Path
+
+import pytest
+from streamlit.testing.v1 import AppTest
+
+
+PRODUCT = {
+    "product_id": 31,
+    "product_name": "Test Mackerel",
+    "category": "Fish",
+    "description": "A detailed seafood description for catalogue testing.",
+    "unit": "kg",
+    "unit_price": 21.5,
+    "stock_quantity": 60.0,
+    "availability_status": "Available",
+}
+
+
+@pytest.fixture
+def catalogue_app(monkeypatch):
+    import bootstrap
+    import components.navigation as navigation
+    import services.favorites_service as favorites
+    import services.order_service as orders
+    import services.payment_service as payments
+    import services.product_service as products
+
+    customer_favorites = set()
+    monkeypatch.setattr(bootstrap, "bootstrap_app", lambda: None)
+    monkeypatch.setattr(navigation, "customer_sidebar", lambda: None)
+    monkeypatch.setattr(navigation, "require_role", lambda *roles: None)
+    monkeypatch.setattr(orders, "list_products", lambda *args: [dict(PRODUCT)])
+    monkeypatch.setattr(orders, "product_categories", lambda: ["Fish"])
+    monkeypatch.setattr(products, "get_product", lambda product_id: dict(PRODUCT) if int(product_id) == 31 else None)
+    monkeypatch.setattr(favorites, "list_favorite_product_ids", lambda customer_id: set(customer_favorites))
+
+    def set_favorite(customer_id, product_id, enabled):
+        if enabled:
+            customer_favorites.add(int(product_id))
+        else:
+            customer_favorites.discard(int(product_id))
+        return True, "Favorite saved." if enabled else "Removed from favorites."
+
+    monkeypatch.setattr(favorites, "set_favorite", set_favorite)
+
+    def summary(items):
+        lines = []
+        for product_id, quantity in items:
+            if int(product_id) == PRODUCT["product_id"]:
+                lines.append({
+                    **PRODUCT,
+                    "quantity": float(quantity),
+                    "line_total": float(quantity) * PRODUCT["unit_price"],
+                })
+        return {
+            "items": lines,
+            "total_weight_kg": sum(line["quantity"] for line in lines),
+            "total_amount": sum(line["line_total"] for line in lines),
+        }
+
+    monkeypatch.setattr(payments, "checkout_summary", summary)
+    app = AppTest.from_file(Path("pages/order_seafood.py").resolve())
+    app.session_state["logged_in"] = True
+    app.session_state["user_id"] = 8
+    app.session_state["user_role"] = "Customer"
+    app.session_state["cart"] = {}
+    return app, customer_favorites
+
+
+def test_product_image_opens_details_without_losing_customer_session(catalogue_app):
+    app, _ = catalogue_app
+    app.run()
+    assert not app.exception
+    app.button(key="product_image_31").click().run()
+    assert not app.exception
+    assert app.session_state["logged_in"] is True
+    assert app.session_state["user_id"] == 8
+    assert app.session_state["user_role"] == "Customer"
+    assert app.session_state["selected_seafood_id"] == 31
+    assert app.button(key="back_to_catalogue")
+    assert any(element.label == "Quantity (kg)" for element in app.number_input)
+
+
+def test_favorite_persists_and_add_to_cart_returns_to_catalogue(catalogue_app):
+    app, favorite_ids = catalogue_app
+    app.run()
+    app.button(key="favorite_31").click().run()
+    assert not app.exception
+    assert favorite_ids == {31}
+    assert app.session_state["favorite_product_ids"] == {31}
+
+    app.button(key="product_image_31").click().run()
+    assert app.session_state["selected_seafood_id"] == 31
+    app.button(key="detail_add_to_cart").click().run()
+    assert not app.exception
+    assert app.session_state.get("selected_seafood_id") is None
+    assert app.session_state["cart"] == {31: 10}
+    assert app.session_state["logged_in"] is True
