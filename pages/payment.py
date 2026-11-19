@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 from bootstrap import bootstrap_app
 from components.cards import empty_cart
+from components.payment_input_guard import numeric_payment_input_guard
 from components.theme import apply_theme, page_header
 from components.navigation import customer_sidebar
 from services.payment_service import (MALAYSIAN_BANKS, MALAYSIAN_EWALLETS, PAYMENT_METHODS,
@@ -52,17 +53,6 @@ def sanitize_numeric(value, limit, *, groups=None, slash_after=None):
     if groups:
         return ' '.join(digits[offset:offset + groups] for offset in range(0, len(digits), groups))
     return digits
-
-
-def _install_payment_input_sanitizer():
-    # Streamlit form widgets do not support per-input callbacks. A tiny scoped
-    # listener sanitizes these four checkout inputs as users type or paste.
-    st.html("""<script>
-    (()=>{const parent=window.parent;let doc;try{doc=parent.document}catch(_){return}
-      const rules={'Test card number':{max:16,group:4},'Expiry (MM/YY)':{max:4,slash:2},'Test CVV':{max:3},'DuitNow mobile number':{max:11},'Mobile number':{max:11}};
-      const apply=()=>{for(const input of doc.querySelectorAll('input[aria-label]')){const rule=rules[input.getAttribute('aria-label')];if(!rule||input.dataset.aqSanitize)return;input.dataset.aqSanitize='1';input.inputMode='numeric';input.addEventListener('input',()=>{const start=input.selectionStart;const before=input.value;let digits=Array.from(before).filter(ch=>ch>='0'&&ch<='9').join('').slice(0,rule.max);let value=digits;if(rule.group)value=digits.match(/.{1,4}/g)?.join(' ')||'';if(rule.slash&&digits.length>rule.slash)value=digits.slice(0,rule.slash)+'/'+digits.slice(rule.slash);if(value!==before){input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));const pos=Math.min(value.length,start||value.length);input.setSelectionRange(pos,pos)}})}};
-      apply();new MutationObserver(apply).observe(doc.body,{childList:true,subtree:true});})();
-    </script>""")
 
 
 def submit_demo_order(cart, point_id, method, details, total):
@@ -177,7 +167,7 @@ def render_payment(cart, point_id, total):
         st.html(f'<div class="aq-checkout-total"><span>Demo order total</span><strong>RM {total:,.2f}</strong></div>')
         field_error(errors, 'form')
         submitted = st.form_submit_button('Place Demo Order', type='primary', width='stretch', disabled=st.session_state.get('checkout_busy', False))
-    _install_payment_input_sanitizer()
+    st.iframe(numeric_payment_input_guard(), width=1, height=1)
     if submitted:
         if method == 'Credit / Debit Card':
             details['card_number'] = sanitize_numeric(details.get('card_number'), 16, groups=4)
