@@ -96,34 +96,37 @@ def _variants():
 
 
 PANEL_CSS = """
-/* Streamlit puts role=status/alert on this inner panel. Leave the outer
-   stAlert element alone so its live-region semantics and spacing survive. */
-[data-testid="stAlert"]{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;overflow:visible!important}
+/* Keep Streamlit's live-region wrapper and let each message size to its own
+   content. Long messages stop at the available column width and wrap there. */
+[data-testid="stAlert"]{width:100%!important;margin:.25rem 0 .65rem!important;background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;overflow:visible!important}
 [data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]), .aq-notice {
-    display: flex;
+    display: inline-flex;
     align-items: flex-start;
-    gap: 11px;
+    gap: 9px;
     box-sizing: border-box;
-    width: 100%;
-    max-width: none;
+    width: fit-content;
+    max-width: min(100%, 76rem);
+    min-width: 0;
     margin: 0;
-    padding: 12px 14px;
+    padding: 10px 13px;
     border: 1px solid var(--line);
-    border-radius: 9px;
+    border-radius: 10px;
     background: var(--surface);
     color: var(--ink);
     box-shadow: none;
     text-align: left;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 400;
-    line-height: 1.5;
+    line-height: 1.45;
     overflow-wrap: anywhere;
+    vertical-align: top;
 }
 [data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]):not(:has([data-testid*="Icon"]))::before, .aq-notice::before {
     content: "";
-    flex: 0 0 19px;
-    height: 19px;
-    margin-top: 2px;
+    flex: 0 0 17px;
+    width: 17px;
+    height: 17px;
+    margin-top: 1px;
     background: var(--icon);
     mask: var(--symbol) center / contain no-repeat;
 }
@@ -133,30 +136,41 @@ PANEL_CSS = """
     margin: 0;
     padding: 0;
     overflow-wrap: anywhere;
+    word-break: normal;
 }
 /* Streamlit offsets its final paragraph with a negative wrapper margin. */
 [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] {
     margin: 0;
     min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: normal;
 }
 /* Portal, dialog and public form text rules otherwise override inherited ink. */
 [data-testid="stAlert"] [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"],
 [data-testid="stAlert"] [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] :is(p, span, strong, em, li, code, a, pre) {
     color: var(--ink) !important;
     -webkit-text-fill-color: currentColor;
-    font-size: 15px !important;
-    line-height: 1.5 !important;
+    font-size: 14px !important;
+    line-height: 1.45 !important;
     text-align: left;
+    white-space: normal !important;
 }
 [data-testid="stAlert"] [data-testid="stAlertContainer"] p {
     margin: 0;
     font-weight: 400 !important;
 }
 [data-testid="stAlert"] [data-testid="stAlertContainer"] p + p { margin-top: .45em; }
+[data-testid="stAlert"] [data-testid="stAlertContainer"] :is(pre, code) {
+    max-width: 100%;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+}
 [data-testid="stAlert"] [data-testid="stAlertContainer"] a { text-decoration: underline; }
 [data-testid="stAlertContainer"] [data-testid*="Icon"] {
     color: var(--icon) !important;
-    font-size: 19px;
+    font-size: 17px;
+    flex: 0 0 17px;
 }
 [data-testid="stException"] [data-testid="stExceptionMessage"] :is(span, strong, code) {
     color: var(--ink);
@@ -172,6 +186,18 @@ PANEL_CSS = """
     color: var(--aq-muted);
     font-size: 14px !important;
     line-height: 1.5 !important;
+}
+
+@media (max-width: 640px) {
+  [data-testid="stAlertContainer"]:has([data-testid^="stAlertContent"]), .aq-notice {
+    max-width: 100%;
+    padding: 9px 11px;
+    gap: 8px;
+    font-size: 13px;
+  }
+  [data-testid="stAlert"] [data-testid="stAlertContainer"] [data-testid="stMarkdownContainer"] :is(p, span, strong, em, li, code, a, pre) {
+    font-size: 13px !important;
+  }
 }
 """
 
