@@ -2085,11 +2085,11 @@ body {
 .staff-nav:hover { color: #ffffff !important; border-color: var(--ocean) !important; background: var(--ocean) !important; }
 
 .hero {
-    min-height: 650px;
-    padding: 104px 7% 96px;
+    min-height: max(0px, calc(100svh - 293px));
+    padding: clamp(36px, 4vw, 64px) 7%;
     display: grid;
     grid-template-columns: minmax(0, 1.12fr) minmax(360px, .88fr);
-    gap: 72px;
+    gap: clamp(28px, 4vw, 56px);
     align-items: center;
     background: linear-gradient(115deg, #f8fbfa 0%, #f8fbfa 59%, #e9f2ef 59%, #e9f2ef 100%);
 }
@@ -2099,7 +2099,7 @@ body {
 .hero-content, .hero-visual { position: relative; z-index: 2; }
 .hero-label { margin-bottom: 22px; padding: 7px 10px; border: 0; border-left: 3px solid var(--ocean); border-radius: 0; background: transparent; color: var(--ocean); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
 .label-dot { display: none; }
-.hero h1 { max-width: 700px; color: var(--ink); font-size: clamp(43px, 4.7vw, 67px); line-height: 1.02; letter-spacing: -2.8px; }
+.hero h1 { max-width: 700px; color: var(--ink); font-size: clamp(38px, 4.2vw, 60px); line-height: 1.04; letter-spacing: -2px; }
 .hero h1 span { margin-top: 11px; color: var(--ocean); }
 .hero-description { max-width: 620px; color: #59717c; font-size: 16px; line-height: 1.75; }
 .local-tags { gap: 8px; margin: 27px 0 31px; }
@@ -2255,7 +2255,7 @@ body {
 .sea-wave, .portal-section, .users, .about { display: none; }
 
 @media (max-width: 880px) {
-    .hero { grid-template-columns: 1fr; gap: 45px; padding-top: 80px; }
+    .hero { grid-template-columns: 1fr; gap: 28px; padding: 42px 5%; }
     .hero-visual { max-width: 620px; width: 100%; }
 }
 
