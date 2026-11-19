@@ -22,19 +22,6 @@ MALAYSIAN_BANKS = [
 MALAYSIAN_EWALLETS = [
     "Touch 'n Go eWallet", "GrabPay", "Boost", "ShopeePay", "MAE",
 ]
-DEMO_TEST_CARDS = {"4242424242424242", "5555555555554444"}
-
-
-def _luhn(number):
-    total = 0
-    for index, digit in enumerate(reversed(number)):
-        value = int(digit)
-        if index % 2:
-            value *= 2
-            if value > 9:
-                value -= 9
-        total += value
-    return total % 10 == 0
 
 
 def _valid_malaysian_mobile(value):
@@ -58,12 +45,10 @@ def validate_payment_details(payment_method, details):
         number = re.sub(r"[ -]", "", str(details.get("card_number") or ""))
         expiry = str(details.get("expiry") or "").strip()
         cvv = str(details.get("cvv") or "").strip()
-        if not 2 <= len(name) <= 80 or not re.fullmatch(r"[A-Za-z][A-Za-z .'-]*", name):
-            errors["cardholder"] = "Enter the name on the test card (2–80 letters)."
-        if not number.isascii() or not number.isdigit() or len(number) != 16 or not _luhn(number):
+        if not 2 <= len(name) <= 80 or not re.fullmatch(r"[A-Za-z]+(?: [A-Za-z]+)*", name):
+            errors["cardholder"] = "Enter 2–80 letters and spaces for the cardholder name."
+        if not number.isascii() or not number.isdigit() or len(number) != 16:
             errors["card_number"] = "Enter a valid 16-digit test card number."
-        elif number not in DEMO_TEST_CARDS:
-            errors["card_number"] = "Only the example test cards shown below are accepted. Do not enter a real card."
         match = re.fullmatch(r"(0[1-9]|1[0-2])/([0-9]{2})", expiry)
         if not match:
             errors["expiry"] = "Use a valid expiry in MM/YY format."

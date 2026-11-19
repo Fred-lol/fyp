@@ -26,17 +26,17 @@ page_header("Review & place your order", "Choose your collection point and compl
 st.html("""<style>
 .st-key-checkout_summary,.st-key-checkout_payment{padding:24px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important}
 .st-key-checkout_payment [data-testid="stForm"]{border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important}
-.st-key-payment_method_choices [data-testid="stHorizontalBlock"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
-.st-key-payment_method_choices [data-testid="column"]{width:auto!important;min-width:0!important;flex:initial!important;box-sizing:border-box!important}
-.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{width:100%!important;min-height:88px!important;padding:12px 10px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-align:center!important;white-space:nowrap!important;line-height:1.25!important;background:var(--aq-card2)!important;color:var(--aq-text)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important;box-shadow:none!important}
+.st-key-payment_method_choices [data-testid="stHorizontalBlock"]{width:100%!important;gap:12px!important;margin-bottom:12px!important}
+.st-key-payment_method_choices [data-testid="stColumn"]{min-width:0!important;flex:1 1 0!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{width:100%!important;height:88px!important;padding:10px 8px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-align:center!important;white-space:normal!important;line-height:1.2!important;background:var(--aq-card2)!important;color:var(--aq-text)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important;box-shadow:none!important}
 .st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button:hover{border-color:var(--aq-teal)!important;transform:translateY(-1px)!important}
-.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button *{color:inherit!important;white-space:nowrap!important}
-.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button p{font-size:clamp(.75rem,.9vw,.9rem)!important;line-height:1.25!important;text-align:center!important;margin:0!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button *{color:inherit!important;white-space:normal!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button p{font-size:.86rem!important;line-height:1.2!important;text-align:center!important;margin:0!important;overflow:visible!important;text-overflow:clip!important}
 .aq-checkout-total{display:flex;justify-content:space-between;align-items:baseline;padding:20px 0;color:var(--aq-text)}.aq-checkout-total strong{font-size:24px}
 .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button:focus-visible{outline:3px solid var(--aq-cyan)!important;outline-offset:2px!important}
 .aq-numeric-error{color:var(--aq-status-danger-text)!important;font-size:.82rem!important;margin-top:.2rem!important}
 @media(max-width:600px){.st-key-checkout_summary,.st-key-checkout_payment{padding:16px!important}.aq-checkout-total strong{font-size:21px!important}}
-@media(max-width:420px){.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{min-height:82px!important;padding:8px 4px!important}.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button p{font-size:.68rem!important}}
+@media(max-width:420px){.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{height:94px!important;padding:8px 4px!important}.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button p{font-size:.74rem!important}}
 </style>""")
 
 
@@ -130,7 +130,7 @@ def render_payment(cart, point_id, total):
     # Explicit class selector styles selected as Streamlit's card button itself.
     if method in labels:
         selected_slug = labels[method][0]
-        st.html(f'<style>.st-key-checkout_payment .st-key-payment_method_choices .st-key-payment_method_select_{selected_slug} button{{background:color-mix(in srgb,var(--aq-teal) 14%,var(--aq-card))!important;color:var(--aq-navy)!important;border:2px solid var(--aq-teal)!important;box-shadow:0 3px 12px color-mix(in srgb,var(--aq-teal) 12%,transparent)!important}}</style>')
+        st.html(f'<style>.st-key-checkout_payment .st-key-payment_method_choices .st-key-payment_method_select_{selected_slug} button{{background:color-mix(in srgb,var(--aq-teal) 14%,var(--aq-card))!important;color:var(--aq-text)!important;border:2px solid var(--aq-teal)!important;box-shadow:0 3px 12px color-mix(in srgb,var(--aq-teal) 12%,transparent)!important}}</style>')
     errors = st.session_state.get('payment_errors', {})
     field_error(errors, 'method')
     if method is None:
@@ -143,7 +143,7 @@ def render_payment(cart, point_id, total):
             field_error(errors, 'cardholder')
             details['card_number'] = st.text_input('Test card number', placeholder='4242 4242 4242 4242', key='payment_card_number', autocomplete='off', max_chars=19)
             field_error(errors, 'card_number')
-            st.caption('Test numbers: Visa 4242 4242 4242 4242 · Mastercard 5555 5555 5555 4444')
+            st.caption('Use a 16-digit demo number. Do not enter a real card number.')
             exp_col, cvv_col = st.columns(2)
             with exp_col:
                 details['expiry'] = st.text_input('Expiry (MM/YY)', placeholder='MM/YY', key='payment_expiry', autocomplete='off')

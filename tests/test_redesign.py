@@ -29,21 +29,16 @@ def test_invalid_demo_selection(method, details, field):
     assert field in payment.validate_payment_details(method,dict(details,demo_confirmed=True))
 
 
-@pytest.mark.parametrize("payment_status,message", [
-    ("Paid", "Order cancelled successfully. Your payment will be refunded within 14 days."),
-    ("Refunded", "Order cancelled successfully. Your payment will be refunded within 14 days."),
-    ("Simulated", "Order cancelled successfully. No money was charged for this demo payment, so no refund is due."),
-    ("Demo Cancelled", "Order cancelled successfully. No money was charged for this demo payment, so no refund is due."),
-    (None, "Order cancelled successfully. No payment was collected, so no refund is due."),
+@pytest.mark.parametrize("by_staff,message", [
+    (False, "Order cancelled successfully. Refund will be processed within 14 days (demo simulation)."),
+    (True, "Your order has been cancelled. Refund will be processed within 14 days (demo simulation)."),
 ])
-def test_cancellation_message_matches_payment_status(payment_status, message):
+def test_cancellation_message_matches_payment_status(by_staff, message):
     from services.order_service import cancellation_customer_message
-    assert cancellation_customer_message(payment_status) == message
+    assert cancellation_customer_message(by_staff=by_staff) == message
 
 
 @pytest.mark.parametrize('field,value', [
-    ('card_number','4111111111111111'),
-    ('card_number','4242424242424241'),
     ('card_number','123'),
     ('cardholder',''),
     ('cardholder','Test Customer2'),
@@ -55,6 +50,13 @@ def test_invalid_test_card_fields(field,value):
     details={'cardholder':'Test Customer','card_number':'4242424242424242','expiry':'12/29','cvv':'123','demo_confirmed':True}
     details[field]=value
     assert field in payment.validate_payment_details('Credit / Debit Card',details)
+
+
+def test_any_sixteen_digit_demo_card_is_accepted():
+    assert not payment.validate_payment_details('Credit / Debit Card', {
+        'cardholder': 'Test Customer', 'card_number': '4111 1111 1111 1111',
+        'expiry': '12/29', 'cvv': '123',
+    })
 
 class Result:
     def __init__(self, value): self.value=value

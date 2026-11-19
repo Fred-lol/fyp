@@ -65,8 +65,8 @@ ORDER_STATUSES = [
 ORDER_STATUS_TRANSITIONS = {
     "Pending": ["Confirmed", "Cancelled"],
     "Confirmed": ["Ready for Pickup", "Ready for Loading", "Cancelled"],
-    "Ready for Pickup": ["Completed"],
-    "Ready for Loading": ["Loaded"],
+    "Ready for Pickup": ["Completed", "Cancelled"],
+    "Ready for Loading": ["Loaded", "Cancelled"],
     "Loaded": ["Completed"],
     "Completed": [],
     "Cancelled": [],

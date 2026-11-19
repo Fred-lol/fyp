@@ -228,7 +228,7 @@ def list_customer_orders(customer_id, view_filter="All"):
         LEFT JOIN order_items oi ON oi.order_id=o.order_id
         LEFT JOIN seafood_products p ON p.product_id=oi.product_id
         LEFT JOIN payments pay ON pay.order_id=o.order_id
-        WHERE o.customer_id=? AND o.archived_at IS NULL
+        WHERE o.customer_id=? AND (o.archived_at IS NULL OR o.status='Cancelled')
         {filter_sql}
         GROUP BY o.order_id, pay.payment_id
         ORDER BY o.order_date DESC, o.order_id DESC
@@ -394,23 +394,23 @@ def _restore_order_stock(conn, order_id, updated_by, movement_type="Order Cancel
         )
 
 
-def cancellation_customer_message(payment_status):
-    """Return accurate customer-facing cancellation feedback for payment state."""
-    if payment_status in {"Paid", "Refunded"}:
-        return "Order cancelled successfully. Your payment will be refunded within 14 days."
-    if payment_status in {"Simulated", "Demo Cancelled"}:
-        return "Order cancelled successfully. No money was charged for this demo payment, so no refund is due."
-    return "Order cancelled successfully. No payment was collected, so no refund is due."
+def cancellation_customer_message(payment_status=None, *, by_staff=False):
+    """Customer notice for a simulated cancellation; no financial refund occurs."""
+    if by_staff:
+        return "Your order has been cancelled. Refund will be processed within 14 days (demo simulation)."
+    return "Order cancelled successfully. Refund will be processed within 14 days (demo simulation)."
 
 
 def cancel_order(order_id, customer_id):
-    order = get_order(order_id, customer_id)
-    if not order:
-        return False, "Order not found."
-    if order["status"] not in CANCELLABLE_ORDER_STATUSES:
-        return False, "This order can no longer be cancelled."
-    payment_status = (order.get("payment") or {}).get("payment_status")
     with db_session() as conn:
+        order = conn.execute(
+            "SELECT status FROM seafood_orders WHERE order_id=? AND customer_id=? FOR UPDATE",
+            (order_id, customer_id),
+        ).fetchone()
+        if not order:
+            return False, "Order not found."
+        if order["status"] not in CANCELLABLE_ORDER_STATUSES:
+            return False, "This order can no longer be cancelled."
         _restore_order_stock(conn, order_id, customer_id)
         conn.execute(
             """
@@ -420,12 +420,12 @@ def cancel_order(order_id, customer_id):
             """,
             (order_id,),
         )
-        conn.execute("UPDATE payments SET payment_status=CASE WHEN payment_status='Simulated' THEN 'Demo Cancelled' ELSE 'Refunded' END WHERE order_id=? AND payment_status IN ('Paid','Simulated')", (order_id,))
+        conn.execute("UPDATE payments SET payment_status='Demo Refund Pending' WHERE order_id=? AND payment_status IN ('Paid','Simulated')", (order_id,))
         conn.execute(
             "INSERT INTO order_status_history(order_id,status,updated_by,note) VALUES(?,?,?,?)",
-            (order_id, "Cancelled", customer_id, cancellation_customer_message(payment_status)),
+            (order_id, "Cancelled", customer_id, cancellation_customer_message()),
         )
-    return True, cancellation_customer_message(payment_status)
+    return True, cancellation_customer_message()
 
 
 def archive_expired_completed_orders():
@@ -531,11 +531,13 @@ def allowed_next_statuses(current_status):
 def update_order_status(order_id, new_status, updated_by, note=""):
     """Advance an order through verified operational stages."""
     with db_session() as conn:
-        order = conn.execute("SELECT * FROM seafood_orders WHERE order_id=?", (order_id,)).fetchone()
+        order = conn.execute("SELECT * FROM seafood_orders WHERE order_id=? FOR UPDATE", (order_id,)).fetchone()
         if not order:
             return False, "Order not found."
         current_status = order["status"]
         if current_status == new_status:
+            if new_status == "Cancelled":
+                return False, "This order is already cancelled."
             return True, "Order status is already up to date."
         allowed = allowed_next_statuses(current_status)
         if new_status not in allowed:
@@ -568,15 +570,9 @@ def update_order_status(order_id, new_status, updated_by, note=""):
                 return True, "Order confirmed and marked Ready for Pickup at LKIM Fisheries Complex Kuala Perlis. No lorry is required."
             return True, "Order confirmed and automatically marked Ready for Loading."
         if new_status == "Cancelled":
-            payment_row = conn.execute(
-                "SELECT payment_status FROM payments WHERE order_id=?",
-                (order_id,),
-            ).fetchone()
-            cancellation_notice = cancellation_customer_message(
-                payment_row["payment_status"] if payment_row else None
-            )
+            cancellation_notice = cancellation_customer_message(by_staff=True)
             _restore_order_stock(conn, order_id, updated_by, "Staff Cancellation")
-            conn.execute("UPDATE payments SET payment_status=CASE WHEN payment_status='Simulated' THEN 'Demo Cancelled' ELSE 'Refunded' END WHERE order_id=? AND payment_status IN ('Paid','Simulated')", (order_id,))
+            conn.execute("UPDATE payments SET payment_status='Demo Refund Pending' WHERE order_id=? AND payment_status IN ('Paid','Simulated')", (order_id,))
         conn.execute(
             """
             UPDATE seafood_orders

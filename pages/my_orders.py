@@ -61,7 +61,7 @@ for o in orders:
                 and str(cancellation_event.get("updated_by")) != str(st.session_state.user_id)
             )
             if admin_cancellation_notice:
-                st.info(cancellation_customer_message(payment.get("payment_status")))
+                st.info(cancellation_customer_message(by_staff=True))
         st.markdown("#### Order Progress")
         for index, history in enumerate(detail.get("history", []), start=1):
             label = "Current" if index == len(detail["history"]) else "Completed"

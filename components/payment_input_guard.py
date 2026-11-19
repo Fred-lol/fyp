@@ -64,14 +64,12 @@ def numeric_payment_input_guard() -> str:
     if (input.dataset.aqNumericGuard === 'on') return;
     input.dataset.aqNumericGuard = 'on';
     if (rule.name) {
-      const stripDigits = (value) => Array.from(String(value || ''))
-        .filter((character) => !/\p{N}/u.test(character))
-        .join('');
+      const stripDigits = (value) => String(value || '').replace(/[^A-Za-z ]/g, '');
       input.addEventListener('beforeinput', (event) => {
-        if (event.inputType?.startsWith('insert') && event.data && /\p{N}/u.test(event.data)) event.preventDefault();
+        if (event.inputType?.startsWith('insert') && event.data && /[^A-Za-z ]/.test(event.data)) event.preventDefault();
       });
       input.addEventListener('keydown', (event) => {
-        if (!event.ctrlKey && !event.metaKey && !event.altKey && /\p{N}/u.test(event.key)) event.preventDefault();
+        if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && /[^A-Za-z ]/.test(event.key)) event.preventDefault();
       });
       input.addEventListener('paste', (event) => {
         event.preventDefault();
@@ -81,7 +79,7 @@ def numeric_payment_input_guard() -> str:
         const inserted = stripDigits(event.clipboardData?.getData('text') || '');
         const next = `${value.slice(0, start)}${inserted}${value.slice(end)}`;
         setReactAwareValue(input, stripDigits(next));
-        const removedBeforeCaret = Array.from(value.slice(0, start)).filter((character) => /\p{N}/u.test(character)).length;
+        const removedBeforeCaret = value.slice(0, start).length - stripDigits(value.slice(0, start)).length;
         const caret = Math.max(0, start - removedBeforeCaret) + inserted.length;
         input.setSelectionRange(caret, caret);
       });
@@ -90,7 +88,7 @@ def numeric_payment_input_guard() -> str:
         const cursor = input.selectionStart ?? current.length;
         const cleaned = stripDigits(current);
         if (cleaned === current) return;
-        const removedBeforeCaret = Array.from(current.slice(0, cursor)).filter((character) => /\p{N}/u.test(character)).length;
+        const removedBeforeCaret = current.slice(0, cursor).length - stripDigits(current.slice(0, cursor)).length;
         setReactAwareValue(input, cleaned);
         const caret = Math.max(0, cursor - removedBeforeCaret);
         input.setSelectionRange(caret, caret);
