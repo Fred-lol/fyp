@@ -48,12 +48,14 @@ def checkout_db(monkeypatch):
 
 @pytest.mark.parametrize('method,details',[
  ('Credit / Debit Card',{'cardholder':'Test Customer','card_number':'4242424242424242','expiry':'12/29','cvv':'123'}),('Online Banking (FPX)',{'bank':'Maybank2u'}),
- ('DuitNow QR',{}),('E-Wallet',{'wallet':'Boost','mobile':'01112345678'})])
+ ('DuitNow Mobile Number',{'mobile':'01112345678'}),('E-Wallet',{'wallet':'Boost','mobile':'01112345678'})])
 def test_real_demo_order_and_retry(checkout_db,method,details):
-    token=str(uuid4()); details=dict(details,demo_confirmed=True)
+    token=str(uuid4())
+    if method != 'DuitNow Mobile Number':
+        details['demo_confirmed']=True
     args=(1,[(1,10)],method,details,1)
-    first=payments.complete_demo_payment(*args,submission_key=token)
-    second=payments.complete_demo_payment(*args,submission_key=token)
+    first=payments.complete_demo_payment(*args,submission_key=token,expected_total=200.00)
+    second=payments.complete_demo_payment(*args,submission_key=token,expected_total=200.00)
     assert first[0] and first[2]==second[2]
     assert checkout_db.execute('SELECT count(*) AS n FROM seafood_orders').fetchone()['n']==1
     assert checkout_db.execute('SELECT stock_quantity FROM seafood_products').fetchone()['stock_quantity']==90
@@ -63,15 +65,27 @@ def test_real_demo_order_and_retry(checkout_db,method,details):
 
 @pytest.mark.parametrize('cart,point',[([],1), ([(1,101)],1), ([(1,9)],1), ([(1,10)],999), ([(999,10)],1)])
 def test_rejected_order_has_no_writes(checkout_db,cart,point):
-    result=payments.complete_demo_payment(1,cart,'DuitNow QR',{'demo_confirmed':True},point,submission_key=str(uuid4()))
+    result=payments.complete_demo_payment(1,cart,'DuitNow Mobile Number',{'mobile':'0123456789'},point,submission_key=str(uuid4()))
     assert not result[0]
     assert checkout_db.execute('SELECT count(*) AS n FROM seafood_orders').fetchone()['n']==0
     assert checkout_db.execute('SELECT stock_quantity FROM seafood_products').fetchone()['stock_quantity']==100
 
 
+def test_stale_checkout_total_does_not_create_order_or_reserve_stock(checkout_db):
+    result = payments.complete_demo_payment(
+        1, [(1, 10)], 'DuitNow Mobile Number', {'mobile':'0123456789'}, 1,
+        submission_key=str(uuid4()), expected_total=199.00,
+    )
+    ok, message, order_id = result
+    assert not ok and 'price changed' in message
+    assert order_id is None
+    assert checkout_db.execute('SELECT count(*) AS n FROM seafood_orders').fetchone()['n'] == 0
+    assert checkout_db.execute('SELECT stock_quantity FROM seafood_products').fetchone()['stock_quantity'] == 100
+
+
 def test_payment_failure_rolls_back_order_and_stock(checkout_db):
     checkout_db._connection.execute("ALTER TABLE payments ADD CONSTRAINT forced_failure CHECK(amount<0)")
     with pytest.raises(Exception):
-        payments.complete_demo_payment(1,[(1,10)],'DuitNow QR',{'demo_confirmed':True},1,submission_key=str(uuid4()))
+        payments.complete_demo_payment(1,[(1,10)],'DuitNow Mobile Number',{'mobile':'0123456789'},1,submission_key=str(uuid4()))
     assert checkout_db.execute('SELECT count(*) AS n FROM seafood_orders').fetchone()['n']==0
     assert checkout_db.execute('SELECT stock_quantity FROM seafood_products').fetchone()['stock_quantity']==100

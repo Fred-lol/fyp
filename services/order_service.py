@@ -64,7 +64,7 @@ def _customer(conn, customer_id):
     return conn.execute("SELECT * FROM users WHERE user_id=?", (customer_id,)).fetchone()
 
 
-def place_order(customer_id, items, collection_point_id=None, *, _connection=None):
+def place_order(customer_id, items, collection_point_id=None, *, _connection=None, expected_total=None):
     """Create a Pending order with a chosen collection point and reserve stock.
 
     ``collection_point_id`` is optional only for older internal callers such
@@ -120,6 +120,22 @@ def place_order(customer_id, items, collection_point_id=None, *, _connection=Non
             stock = float(seafood["stock_quantity"] or 0)
             if qty > stock + 1e-9:
                 return False, f"Only {stock:g} {seafood['unit']} of {seafood['product_name']} is currently available.", None
+
+        # Compare the total shown at checkout with authoritative, row-locked
+        # prices before creating an order or reserving stock.
+        if expected_total is not None:
+            try:
+                expected_total = float(expected_total)
+            except (TypeError, ValueError):
+                return False, "The order total is invalid. Return to checkout and review your order.", None
+            current_total = sum(
+                qty * float(available[product_id]["unit_price"] or 0)
+                for product_id, qty in clean_items
+            )
+            if not isfinite(expected_total) or expected_total <= 0:
+                return False, "The order total is invalid. Return to checkout and review your order.", None
+            if abs(round(current_total, 2) - round(expected_total, 2)) > 0.009:
+                return False, "A seafood price changed while you were checking out. Review the latest total before placing your order.", None
 
         if selected_point_id is not None:
             selected_point = conn.execute(

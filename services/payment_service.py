@@ -9,7 +9,7 @@ from services.order_service import place_order
 PAYMENT_METHODS = [
     "Credit / Debit Card",
     "Online Banking (FPX)",
-    "DuitNow QR",
+    "DuitNow Mobile Number",
     "E-Wallet",
 ]
 
@@ -76,12 +76,17 @@ def validate_payment_details(payment_method, details):
             errors["cvv"] = "Enter a 4 digit test CVV for Amex, or 3 digits for Visa/Mastercard."
     if payment_method == "Online Banking (FPX)" and details.get("bank") not in MALAYSIAN_BANKS:
         errors["bank"] = "Select a supported Malaysian bank."
+    if payment_method == "DuitNow Mobile Number":
+        if not _valid_malaysian_mobile(details.get("mobile")):
+            errors["mobile"] = "Enter a valid Malaysian mobile number, such as 0123456789 or +60123456789. 011 numbers are supported."
     if payment_method == "E-Wallet":
         if details.get("wallet") not in MALAYSIAN_EWALLETS:
             errors["wallet"] = "Select a supported e-wallet provider."
         if not _valid_malaysian_mobile(details.get("mobile")):
             errors["mobile"] = "Enter a Malaysian mobile number: 0123456789 or 01112345678. +60 format is also accepted."
-    if details.get("demo_confirmed") is not True:
+    # DuitNow intentionally asks for one field only; a validated mobile number
+    # authorizes the simulated step and is never persisted.
+    if payment_method != "DuitNow Mobile Number" and details.get("demo_confirmed") is not True:
         errors["demo_confirmed"] = "Confirm the demo step to continue. No money will be charged."
     return errors
 
@@ -131,7 +136,7 @@ def checkout_summary(items):
     }
 
 
-def complete_demo_payment(customer_id, items, payment_method, payment_details=None, collection_point_id=None, *, submission_key=None):
+def complete_demo_payment(customer_id, items, payment_method, payment_details=None, collection_point_id=None, *, submission_key=None, expected_total=None):
     """Atomically reserve stock and record a simulated payment, once per checkout.
 
     Advisory locking serializes duplicate requests across processes. The unique
@@ -156,7 +161,10 @@ def complete_demo_payment(customer_id, items, payment_method, payment_details=No
         existing = conn.execute("SELECT order_id FROM payments WHERE transaction_reference=? AND customer_id=?", (reference, customer_id)).fetchone()
         if existing:
             return True, "This demo order was already submitted. No duplicate was created.", existing['order_id']
-        ok, message, order_id = place_order(customer_id, items, collection_point_id=collection_point_id, _connection=conn)
+        ok, message, order_id = place_order(
+            customer_id, items, collection_point_id=collection_point_id,
+            _connection=conn, expected_total=expected_total,
+        )
         if not ok:
             return False, message, None
         # Products remain locked by place_order; use authoritative prices in the

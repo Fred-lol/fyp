@@ -25,13 +25,15 @@ page_header("Review & place your order", "Choose your collection point and compl
 st.html("""<style>
 .st-key-checkout_summary,.st-key-checkout_payment{padding:24px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important}
 .st-key-checkout_payment [data-testid="stForm"]{border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important}
-.st-key-payment_method_choices{display:grid!important;grid-template-columns:1fr 1fr;gap:10px!important;margin:8px 0 18px}
-.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{width:100%!important;min-height:64px!important;padding:12px 14px!important;justify-content:flex-start!important;text-align:left!important;white-space:normal!important;line-height:1.3!important;background:var(--aq-card2)!important;color:var(--aq-text)!important;border:1px solid var(--aq-border)!important;border-radius:10px!important;box-shadow:none!important}
+.st-key-payment_method_choices [data-testid="stHorizontalBlock"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+.st-key-payment_method_choices [data-testid="column"]{width:auto!important;min-width:0!important;flex:initial!important;box-sizing:border-box!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{width:100%!important;min-height:72px!important;padding:12px 14px!important;justify-content:flex-start!important;text-align:left!important;white-space:normal!important;line-height:1.3!important;background:var(--aq-card2)!important;color:var(--aq-text)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important;box-shadow:none!important}
 .st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button:hover{border-color:var(--aq-teal)!important;transform:translateY(-1px)!important}
-.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button *{color:inherit!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button *{color:inherit!important;white-space:normal!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button p{line-height:1.35!important;text-align:left!important}
 .aq-checkout-total{display:flex;justify-content:space-between;align-items:baseline;padding:20px 0;color:var(--aq-text)}.aq-checkout-total strong{font-size:24px}
-.aq-demo-qr{padding:20px;border:1px dashed var(--aq-border);border-radius:8px;text-align:center;color:var(--aq-text);background:var(--aq-card2)}.aq-demo-qr svg{display:block;margin:0 auto 12px;width:100px;height:100px;color:var(--aq-teal)}
-@media(max-width:600px){.st-key-checkout_summary,.st-key-checkout_payment{padding:16px!important}.st-key-payment_method_choices{grid-template-columns:1fr}}
+.st-key-payment_method_choices [class*="st-key-payment_method_select_"] button:focus-visible{outline:3px solid var(--aq-cyan)!important;outline-offset:2px!important}
+@media(max-width:600px){.st-key-checkout_summary,.st-key-checkout_payment{padding:16px!important}.aq-checkout-total strong{font-size:21px!important}}
 </style>""")
 
 
@@ -40,7 +42,7 @@ def field_error(errors, field):
         st.error(errors[field])
 
 
-def submit_demo_order(cart, point_id, method, details):
+def submit_demo_order(cart, point_id, method, details, total):
     """Callback runs before rendering, so inline errors appear immediately."""
     if st.session_state.get("checkout_busy"):
         st.session_state.payment_errors = {"form": "Your order is being submitted. Please wait."}
@@ -53,8 +55,10 @@ def submit_demo_order(cart, point_id, method, details):
         return
     st.session_state.checkout_busy = True
     try:
-        ok, message, order_id = complete_demo_payment(st.session_state.user_id, cart, method, details, point_id,
-            submission_key=st.session_state.checkout_token)
+        ok, message, order_id = complete_demo_payment(
+            st.session_state.user_id, cart, method, details, point_id,
+            submission_key=st.session_state.checkout_token, expected_total=total,
+        )
         if ok:
             st.session_state.payment_success_pending = order_id
         else:
@@ -74,13 +78,21 @@ def choose_payment_method(method):
         st.session_state.payment_errors = {}
         for selected_method in PAYMENT_METHODS:
             st.session_state[f"demo_confirmed_{selected_method}"] = False
+        # Keep payment inputs short-lived in browser-backed session state; a
+        # method switch clears old details instead of retaining them hidden.
+        for key in (
+            'payment_cardholder', 'payment_card_number', 'payment_expiry',
+            'payment_cvv', 'payment_bank', 'payment_duitnow_mobile',
+            'payment_wallet', 'payment_wallet_mobile',
+        ):
+            st.session_state.pop(key, None)
 
 
 def render_payment(cart, point_id, total):
     labels = {
         'Credit / Debit Card': ('card', ':material/credit_card:', 'Credit / Debit Card'),
         'Online Banking (FPX)': ('fpx', ':material/account_balance:', 'FPX Online Banking'),
-        'DuitNow QR': ('duitnow', ':material/qr_code_2:', 'DuitNow QR'),
+        'DuitNow Mobile Number': ('duitnow', ':material/phone_iphone:', 'DuitNow Mobile Number'),
         'E-Wallet': ('wallet', ':material/account_balance_wallet:', 'E-Wallet'),
     }
     method = st.session_state.get('payment_method')
@@ -94,7 +106,7 @@ def render_payment(cart, point_id, total):
             slug, icon, label = labels[payment_method]
             with column:
                 st.button(
-                    label,
+                    f'{"✓  " if payment_method == method else ""}{label}',
                     key=f'payment_method_select_{slug}',
                     icon=icon,
                     help=f'Select {label}',
@@ -129,22 +141,29 @@ def render_payment(cart, point_id, total):
         elif method == 'Online Banking (FPX)':
             details['bank'] = st.selectbox('Malaysian bank', MALAYSIAN_BANKS, index=None, placeholder='Search or select your bank', key='payment_bank')
             field_error(errors, 'bank')
-            st.caption('A real FPX checkout redirects to your bank. This demo does not connect to a bank.')
-        elif method == 'DuitNow QR':
-            st.html('<div class="aq-demo-qr"><svg viewBox="0 0 100 100" aria-label="Non-scannable demo illustration"><g fill="none" stroke="currentColor" stroke-width="5"><rect x="8" y="8" width="24" height="24"/><rect x="68" y="8" width="24" height="24"/><rect x="8" y="68" width="24" height="24"/><path d="M45 8v20M70 70h22v22M8 48h25M50 70v22"/></g><text x="50" y="56" text-anchor="middle" fill="currentColor" font-size="14">DEMO</text></svg><strong>DEMO &mdash; NOT FOR PAYMENT</strong><p>This illustration cannot be used to pay.</p></div>')
+            st.caption('Demo authorization only. Never enter bank login details, passwords, or OTPs.')
+        elif method == 'DuitNow Mobile Number':
+            details['mobile'] = st.text_input('DuitNow mobile number', placeholder='0123456789 or +60123456789', key='payment_duitnow_mobile', autocomplete='tel')
+            field_error(errors, 'mobile')
+            st.caption('011 numbers are supported. This number is used only for demo validation and is not saved.')
         elif method == 'E-Wallet':
             details['wallet'] = st.selectbox('E-wallet provider', MALAYSIAN_EWALLETS, index=None, placeholder='Select your e-wallet', key='payment_wallet')
             field_error(errors, 'wallet')
             details['mobile'] = st.text_input('Mobile number', placeholder='0123456789', key='payment_wallet_mobile')
             field_error(errors, 'mobile')
-        if method:
-            details['demo_confirmed'] = st.checkbox('Confirm this demo step - no money will be charged', key='demo_confirmed_'+method)
+        if method and method != 'DuitNow Mobile Number':
+            confirmation_label = {
+                'Credit / Debit Card': 'I confirm these are test card details only.',
+                'Online Banking (FPX)': 'Confirm simulated FPX authorization.',
+                'E-Wallet': 'Confirm this simulated e-wallet payment.',
+            }[method]
+            details['demo_confirmed'] = st.checkbox(confirmation_label, key='demo_confirmed_'+method)
             field_error(errors, 'demo_confirmed')
         st.html(f'<div class="aq-checkout-total"><span>Demo order total</span><strong>RM {total:,.2f}</strong></div>')
         field_error(errors, 'form')
         submitted = st.form_submit_button('Place Demo Order', type='primary', width='stretch', disabled=st.session_state.get('checkout_busy', False))
     if submitted:
-        submit_demo_order(cart, point_id, method, details)
+        submit_demo_order(cart, point_id, method, details, total)
         st.rerun()
 
 
@@ -175,7 +194,7 @@ if order_id := st.session_state.pop('payment_success_pending', None):
     st.session_state.cart = {}
     for key in ('checkout_fingerprint','checkout_snapshot','checkout_points','payment_errors'):
         st.session_state.pop(key,None)
-    for key in ('payment_cardholder','payment_card_number','payment_expiry','payment_cvv','payment_wallet_mobile'):
+    for key in ('payment_cardholder','payment_card_number','payment_expiry','payment_cvv','payment_wallet_mobile','payment_duitnow_mobile'):
         st.session_state.pop(key,None)
     st.switch_page('pages/payment_success.py')
     st.stop()

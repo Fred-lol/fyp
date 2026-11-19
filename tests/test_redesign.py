@@ -17,14 +17,18 @@ def test_invalid_mobile(number):
 
 @pytest.mark.parametrize("method,details", [
  ('Credit / Debit Card', {'cardholder':'Test Customer','card_number':'4242 4242 4242 4242','expiry':'12/29','cvv':'123'}), ('Online Banking (FPX)', {'bank':'Maybank2u'}),
- ('DuitNow QR',{}), ('E-Wallet',{'wallet':'Boost','mobile':'01112345678'})])
+ ('DuitNow Mobile Number',{'mobile':'01112345678'}), ('E-Wallet',{'wallet':'Boost','mobile':'01112345678'})])
 def test_demo_methods(method,details):
-    assert 'demo_confirmed' in payment.validate_payment_details(method, details)
-    assert not payment.validate_payment_details(method, dict(details,demo_confirmed=True))
+    if method == 'DuitNow Mobile Number':
+        assert not payment.validate_payment_details(method, details)
+    else:
+        assert 'demo_confirmed' in payment.validate_payment_details(method, details)
+        assert not payment.validate_payment_details(method, dict(details,demo_confirmed=True))
 
 @pytest.mark.parametrize("method,details,field", [
  (None,{},'method'),('unknown',{},'method'),('Online Banking (FPX)',{'bank':'Fake'},'bank'),
- ('E-Wallet',{'wallet':'Fake','mobile':'0123456789'},'wallet'),('E-Wallet',{'wallet':'Boost','mobile':''},'mobile')])
+ ('E-Wallet',{'wallet':'Fake','mobile':'0123456789'},'wallet'),('E-Wallet',{'wallet':'Boost','mobile':''},'mobile'),
+ ('DuitNow Mobile Number',{'mobile':''},'mobile')])
 def test_invalid_demo_selection(method, details, field):
     assert field in payment.validate_payment_details(method,dict(details,demo_confirmed=True))
 
@@ -70,7 +74,7 @@ def test_duplicate_reference_and_authoritative_price(monkeypatch):
         calls.append(kwargs); assert kwargs['_connection'] is conn
         return True,'ok',42
     setup_payment(monkeypatch,conn,place)
-    args=(1,[(7,10)],'DuitNow QR',{'demo_confirmed':True},3)
+    args=(1,[(7,10)],'DuitNow Mobile Number',{'mobile':'0123456789'},3)
     token=str(uuid4())
     assert payment.complete_demo_payment(*args,submission_key=token)[2]==42
     result=payment.complete_demo_payment(*args,submission_key=token)
@@ -84,14 +88,14 @@ def test_duplicate_reference_and_authoritative_price(monkeypatch):
 def test_failed_stock_keeps_payment_unwritten(monkeypatch):
     conn=PaymentConnection()
     setup_payment(monkeypatch,conn,lambda *a,**k:(False,'Only 5 kg available.',None))
-    result=payment.complete_demo_payment(1,[(7,10)],'DuitNow QR',{'demo_confirmed':True},3,submission_key=str(uuid4()))
+    result=payment.complete_demo_payment(1,[(7,10)],'DuitNow Mobile Number',{'mobile':'0123456789'},3,submission_key=str(uuid4()))
     assert result==(False,'Only 5 kg available.',None)
     assert not any('INSERT' in sql for sql,_ in conn.calls)
 
 
 def test_missing_point_and_expired_token():
-    assert not payment.complete_demo_payment(1,[], 'DuitNow QR', {'demo_confirmed':True})[0]
-    assert not payment.complete_demo_payment(1,[], 'DuitNow QR', {'demo_confirmed':True},3)[0]
+    assert not payment.complete_demo_payment(1,[], 'DuitNow Mobile Number', {'mobile':'0123456789'})[0]
+    assert not payment.complete_demo_payment(1,[], 'DuitNow Mobile Number', {'mobile':'0123456789'},3)[0]
 
 @pytest.mark.parametrize('quantity',[0,-1,9,float('nan'),float('inf')])
 def test_server_minimum_and_finite(monkeypatch,quantity):
