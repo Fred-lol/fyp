@@ -118,7 +118,6 @@ def preview_optimization(lorry_id, order_ids):
 def save_optimization(result, created_by, mark_loaded=False):
     if not result or not result.get("success"):
         return False, "Only a valid loading plan can be saved.", None
-    m = result["metrics"]
     lorry = result["lorry"]
     planned_weight = sum(float(p.get("loaded_weight") or 0) for p in result.get("placements", []))
     with db_session() as conn:
@@ -145,18 +144,67 @@ def save_optimization(result, created_by, mark_loaded=False):
                 f"({excess_weight:,.0f} kg over capacity). Choose a larger lorry or remove orders."
             ), None
 
-        # Validate the exact 3D coordinates again at the write boundary. This
-        # prevents an old preview or stale browser state from saving boxes that
-        # are outside the live lorry dimensions, overlap, or are unsupported.
+        # Rebuild the live required-box list inside this transaction so an old
+        # preview cannot save a partial/stale arrangement after requirements or
+        # box templates changed in another session.
+        order_ids = [int(value) for value in result.get("order_ids", [])]
+        if not order_ids or len(order_ids) != len(set(order_ids)):
+            return False, "Loading plan not saved: the selected order list is missing or duplicated.", None
+        marks = ",".join("?" for _ in order_ids)
+        live_box_rows = conn.execute(
+            f"""
+            SELECT r.order_id,r.box_profile_id,r.quantity,r.loaded_weight_per_box,
+                   b.box_name,b.capacity_litre,b.length,b.width,b.height,
+                   u.full_name customer_name
+            FROM order_box_requirements r
+            JOIN box_profiles b ON b.box_profile_id=r.box_profile_id
+            JOIN seafood_orders o ON o.order_id=r.order_id
+            JOIN users u ON u.user_id=o.customer_id
+            WHERE r.order_id IN ({marks}) AND b.status='Active'
+            ORDER BY r.order_id,b.capacity_litre DESC
+            """,
+            order_ids,
+        ).fetchall()
+        expected_boxes = []
+        box_counter = {}
+        for row in live_box_rows:
+            for _ in range(int(row["quantity"])):
+                order_id = int(row["order_id"])
+                box_counter[order_id] = box_counter.get(order_id, 0) + 1
+                instance = box_counter[order_id]
+                expected_boxes.append({
+                    "order_id": order_id,
+                    "box_profile_id": int(row["box_profile_id"]),
+                    "box_instance": instance,
+                    "length": float(row["length"]),
+                    "width": float(row["width"]),
+                    "height": float(row["height"]),
+                    "loaded_weight": float(row["loaded_weight_per_box"]),
+                })
+
+        # Validate exact coordinates, dimensions, order coverage, weight and
+        # loading sequence again at the database write boundary.
         physical_lorry = dict(current_lorry)
         layout_valid, layout_errors = validate_plan(
-            result.get("placements", []), physical_lorry, planned_weight
+            result.get("placements", []), physical_lorry, planned_weight,
+            expected_boxes=expected_boxes,
         )
         if not layout_valid:
             return False, (
                 "Loading plan not saved: the boxes no longer form a safe layout in "
                 f"{current_lorry['plate_number']}. " + " ".join(layout_errors)
             ), None
+
+        live_lorry_volume = (
+            float(current_lorry["internal_length"])
+            * float(current_lorry["internal_width"])
+            * float(current_lorry["internal_height"])
+        )
+        live_used_volume = sum(
+            float(p["placed_length"]) * float(p["placed_width"]) * float(p["placed_height"])
+            for p in result.get("placements", [])
+        )
+        live_space_utilization = (live_used_volume / live_lorry_volume * 100.0) if live_lorry_volume > 0 else 0.0
 
         if mark_loaded and current_lorry["status"] != "Available":
             return False, (
@@ -182,8 +230,8 @@ def save_optimization(result, created_by, mark_loaded=False):
             """,
             (
                 lorry["lorry_id"], result.get("collection_point_id"), created_by,
-                m["total_boxes"], m["lorry_volume"], m["used_volume"],
-                m["remaining_volume"], m["space_utilization"], planned_weight,
+                len(result.get("placements", [])), live_lorry_volume, live_used_volume,
+                max(live_lorry_volume - live_used_volume, 0.0), live_space_utilization, planned_weight,
                 max(live_capacity - planned_weight, 0.0),
             ),
         )

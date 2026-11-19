@@ -1,12 +1,10 @@
 def orientations(length, width, height):
-    """Return only safe horizontal orientations for insulated fish boxes.
-
-    The physical length, width, and height are fixed for the loading guide.
-    This prevents both upright placement and 90-degree turning, so matching
-    insulated-box templates always render at exactly the same size.
-    """
+    """Return legal horizontal footprints; box height is never rotated upright."""
     length, width, height = float(length), float(width), float(height)
-    return [(length, width, height)]
+    result = [(length, width, height)]
+    if abs(length - width) > 1e-9:
+        result.append((width, length, height))
+    return result
 
 
 def fully_supported(candidate, placements, eps=1e-9):
