@@ -139,7 +139,7 @@ def render_payment(cart, point_id, total):
         details = {}
         if method == 'Credit / Debit Card':
             st.caption('Test cards only. Never enter a real card number or security code. No payment is processed.')
-            details['cardholder'] = st.text_input('Cardholder name (test)', placeholder='Test Customer', key='payment_cardholder', autocomplete='off')
+            details['cardholder'] = st.text_input('Cardholder name (test)', placeholder='Test Customer', key='payment_cardholder', autocomplete='off', max_chars=80)
             field_error(errors, 'cardholder')
             details['card_number'] = st.text_input('Test card number', placeholder='4242 4242 4242 4242', key='payment_card_number', autocomplete='off', max_chars=19)
             field_error(errors, 'card_number')
@@ -167,7 +167,9 @@ def render_payment(cart, point_id, total):
         st.html(f'<div class="aq-checkout-total"><span>Demo order total</span><strong>RM {total:,.2f}</strong></div>')
         field_error(errors, 'form')
         submitted = st.form_submit_button('Place Demo Order', type='primary', width='stretch', disabled=st.session_state.get('checkout_busy', False))
-    st.iframe(numeric_payment_input_guard(), width=1, height=1)
+    # st.iframe expects a URL; it does not execute a supplied script. Execute
+    # the trusted, static guard in the page containing the actual inputs.
+    st.html(numeric_payment_input_guard(), unsafe_allow_javascript=True)
     if submitted:
         if method == 'Credit / Debit Card':
             details['card_number'] = sanitize_numeric(details.get('card_number'), 16, groups=4)

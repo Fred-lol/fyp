@@ -1,4 +1,5 @@
 import ast
+from datetime import date
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
@@ -57,6 +58,20 @@ def test_any_sixteen_digit_demo_card_is_accepted():
         'cardholder': 'Test Customer', 'card_number': '4111 1111 1111 1111',
         'expiry': '12/29', 'cvv': '123',
     })
+
+
+def test_card_expiry_uses_current_month_and_rejects_past_month():
+    today = date.today()
+    details = {
+        'cardholder': 'Test Customer', 'card_number': '1234 5678 9012 3456',
+        'expiry': f'{today.month:02d}/{today.year % 100:02d}', 'cvv': '123',
+    }
+    assert not payment.validate_payment_details('Credit / Debit Card', details)
+    if today.month > 1:
+        details['expiry'] = f'{today.month - 1:02d}/{today.year % 100:02d}'
+    else:
+        details['expiry'] = f'12/{(today.year - 1) % 100:02d}'
+    assert 'expiry' in payment.validate_payment_details('Credit / Debit Card', details)
 
 class Result:
     def __init__(self, value): self.value=value

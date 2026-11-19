@@ -1,17 +1,17 @@
-"""Browser-side character filtering for the demo checkout's numeric fields."""
+"""Browser-side character filtering for demo checkout fields."""
 
 
 def numeric_payment_input_guard() -> str:
     """Return a scoped script that restricts active payment inputs as entered.
 
-    Streamlit's ``text_input`` has no keypress callback. This listener blocks
-    non-digits before insertion, sanitizes paste/input fallbacks, and notifies
-    Streamlit's controlled input state after applying display formatting.
+    Streamlit's ``text_input`` has no keypress callback. This trusted script
+    runs through ``st.html(..., unsafe_allow_javascript=True)`` in the page
+    containing the inputs and notifies React after display formatting.
     """
     return r"""<script>
 (() => {
   const rules = {
-    'Cardholder name (test)': { name: true },
+    'Cardholder name (test)': { name: true, max: 80 },
     'Test card number': { max: 16, grouping: 4 },
     'Expiry (MM/YY)': { max: 4, slash: 2 },
     'Test CVV': { max: 3 },
@@ -64,36 +64,41 @@ def numeric_payment_input_guard() -> str:
     if (input.dataset.aqNumericGuard === 'on') return;
     input.dataset.aqNumericGuard = 'on';
     if (rule.name) {
-      const stripDigits = (value) => String(value || '').replace(/[^A-Za-z ]/g, '');
+      const stripInvalid = (value) => String(value || '').replace(/[^A-Za-z ]/g, '');
       input.addEventListener('beforeinput', (event) => {
-        if (event.inputType?.startsWith('insert') && event.data && /[^A-Za-z ]/.test(event.data)) event.preventDefault();
+        if (!event.inputType?.startsWith('insert') || event.inputType === 'insertFromPaste') return;
+        const selected = Math.abs((input.selectionEnd ?? 0) - (input.selectionStart ?? 0));
+        if (event.data && (/[^A-Za-z ]/.test(event.data) || input.value.length - selected + event.data.length > rule.max)) event.preventDefault();
       });
       input.addEventListener('keydown', (event) => {
-        if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1 && /[^A-Za-z ]/.test(event.key)) event.preventDefault();
+        if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+        const selected = Math.abs((input.selectionEnd ?? 0) - (input.selectionStart ?? 0));
+        if (/[^A-Za-z ]/.test(event.key) || input.value.length - selected >= rule.max) event.preventDefault();
       });
       input.addEventListener('paste', (event) => {
         event.preventDefault();
         const value = input.value;
         const start = input.selectionStart ?? value.length;
         const end = input.selectionEnd ?? start;
-        const inserted = stripDigits(event.clipboardData?.getData('text') || '');
-        const next = `${value.slice(0, start)}${inserted}${value.slice(end)}`;
-        setReactAwareValue(input, stripDigits(next));
-        const removedBeforeCaret = value.slice(0, start).length - stripDigits(value.slice(0, start)).length;
-        const caret = Math.max(0, start - removedBeforeCaret) + inserted.length;
+        const inserted = stripInvalid(event.clipboardData?.getData('text') || '');
+        const before = stripInvalid(value.slice(0, start));
+        const after = stripInvalid(value.slice(end));
+        const accepted = inserted.slice(0, Math.max(0, rule.max - before.length - after.length));
+        setReactAwareValue(input, `${before}${accepted}${after}`);
+        const caret = before.length + accepted.length;
         input.setSelectionRange(caret, caret);
       });
       input.addEventListener('input', () => {
         const current = input.value;
         const cursor = input.selectionStart ?? current.length;
-        const cleaned = stripDigits(current);
+        const cleaned = stripInvalid(current).slice(0, rule.max);
         if (cleaned === current) return;
-        const removedBeforeCaret = current.slice(0, cursor).length - stripDigits(current.slice(0, cursor)).length;
+        const removedBeforeCaret = current.slice(0, cursor).length - stripInvalid(current.slice(0, cursor)).length;
         setReactAwareValue(input, cleaned);
         const caret = Math.max(0, cursor - removedBeforeCaret);
         input.setSelectionRange(caret, caret);
       });
-      const cleaned = stripDigits(input.value);
+      const cleaned = stripInvalid(input.value).slice(0, rule.max);
       if (cleaned !== input.value) setReactAwareValue(input, cleaned);
       return;
     }
@@ -102,35 +107,22 @@ def numeric_payment_input_guard() -> str:
     input.setAttribute('autocomplete', 'off');
     input.setAttribute('maxlength', String(rule.max + (rule.grouping ? Math.floor((rule.max - 1) / rule.grouping) : rule.slash ? 1 : 0)));
 
-    let digitCounter;
-    if (rule.slash) {
-      const widget = input.closest('[data-testid="stTextInput"]');
-      const label = widget?.querySelector('label');
-      if (label) {
-        digitCounter = document.createElement('span');
-        digitCounter.className = 'aq-payment-digit-counter';
-        digitCounter.setAttribute('aria-live', 'polite');
-        digitCounter.style.cssText = 'margin-left:auto;padding-left:12px;font-size:.75rem;font-weight:400;color:var(--aq-muted,#8295a5);white-space:nowrap';
-        label.style.display = 'flex';
-        label.style.alignItems = 'center';
-        label.appendChild(digitCounter);
-      }
-    }
-    const updateDigitCounter = () => {
-      if (digitCounter) digitCounter.textContent = `${digitsOnly(input.value, rule).length}/${rule.max}`;
-    };
-    updateDigitCounter();
-
     input.addEventListener('beforeinput', (event) => {
       if (!event.inputType || !event.inputType.startsWith('insert') || event.inputType === 'insertFromPaste') return;
-      if (event.data && /[^0-9]/.test(event.data)) event.preventDefault();
+      if (!event.data) return;
+      const start = input.selectionStart ?? input.value.length;
+      const end = input.selectionEnd ?? start;
+      const selected = digitsOnly(input.value.slice(start, end), rule).length;
+      if (/[^0-9]/.test(event.data) || digitsOnly(input.value, rule).length - selected + event.data.length > rule.max) event.preventDefault();
     });
 
     input.addEventListener('keydown', (event) => {
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key.length === 1 && !/^[0-9]$/.test(event.key)) event.preventDefault();
       if (/^[0-9]$/.test(event.key)) {
-        const selectionLength = Math.abs((input.selectionEnd || 0) - (input.selectionStart || 0));
+        const start = input.selectionStart ?? input.value.length;
+        const end = input.selectionEnd ?? start;
+        const selectionLength = digitsOnly(input.value.slice(start, end), rule).length;
         const count = digitsOnly(input.value, rule).length;
         if (count - selectionLength >= rule.max) event.preventDefault();
       }
@@ -155,7 +147,6 @@ def numeric_payment_input_guard() -> str:
     });
 
     input.addEventListener('input', () => {
-      updateDigitCounter();
       const oldValue = input.value;
       const oldCursor = input.selectionStart ?? oldValue.length;
       const offset = digitOffset(oldValue, oldCursor, rule);
@@ -174,11 +165,10 @@ def numeric_payment_input_guard() -> str:
     });
   }
 
-  // st.html runs in a same-origin frame. Use its parent document so the guard
-  // attaches directly to Streamlit's real text inputs, not a separate widget.
-  let document;
-  try { document = window.parent.document; } catch (_) { return; }
+  const document = window.document;
   scan(document);
-  new MutationObserver(() => scan(document)).observe(document.body, { childList: true, subtree: true });
+  window.__aqPaymentGuardObserver?.disconnect();
+  window.__aqPaymentGuardObserver = new MutationObserver(() => scan(document));
+  window.__aqPaymentGuardObserver.observe(document.body, { childList: true, subtree: true });
 })();
 </script>"""
