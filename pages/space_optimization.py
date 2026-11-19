@@ -9,6 +9,7 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from bootstrap import bootstrap_app
+from components.cards import info_card
 from components.theme import apply_theme, page_header
 from components.navigation import staff_sidebar, require_staff
 from components.feedback import flash
@@ -88,10 +89,10 @@ if st.session_state.get("optimization_lorry_select") not in lorry_map:
 lorry_label = st.selectbox("Available Lorry", list(lorry_map), key="optimization_lorry_select")
 lorry = lorry_map[lorry_label]
 a, b, c, d = st.columns(4)
-a.metric("Plate Number", lorry["plate_number"])
-b.metric("Internal Size", f"{lorry['internal_length']:g} × {lorry['internal_width']:g} × {lorry['internal_height']:g} cm")
-c.metric("Maximum Weight", f"{lorry['max_weight']:,.0f} kg")
-d.metric("Status", lorry["status"])
+with a: info_card("Plate Number", lorry["plate_number"])
+with b: info_card("Internal Size", f"{lorry['internal_length']:g} × {lorry['internal_width']:g} × {lorry['internal_height']:g} cm")
+with c: info_card("Maximum Weight", f"{lorry['max_weight']:,.0f} kg")
+with d: info_card("Status", lorry["status"])
 
 st.divider()
 st.markdown("## Step 3 — Select Eligible Orders")

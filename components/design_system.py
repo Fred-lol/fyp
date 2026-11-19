@@ -31,6 +31,10 @@ html,body{font-family:Inter,"Segoe UI",Arial,sans-serif!important;overflow-x:hid
 [data-testid="stMain"] [data-testid="stMetricValue"] p{font-size:1.85rem!important;line-height:1.15!important;color:var(--aq-navy)!important}
 [data-testid="stMetricValue"],[data-testid="stMetricValue"]>div,[data-testid="stMetricValue"] p{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere!important}
 .aq-metric-help{color:var(--aq-muted)!important;font-size:.8rem!important;line-height:1.45!important;margin-top:6px!important}
+.aq-info-card{height:100%;min-height:100px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:7px;padding:16px 18px;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:14px!important;box-shadow:0 2px 8px rgba(3,28,53,.045)!important;overflow:visible!important}
+.aq-info-label{color:var(--aq-muted)!important;font-size:.78rem!important;font-weight:750!important;line-height:1.3!important}
+.aq-info-value{color:var(--aq-text)!important;font-size:clamp(1.15rem,1.55vw,1.55rem)!important;font-weight:750!important;line-height:1.25!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important}
+.aq-info-help{color:var(--aq-muted)!important;font-size:.78rem!important;line-height:1.4!important}
 .aq-note,.aq-soft-panel{background:var(--aq-card2)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important;color:var(--aq-muted)!important}
 
 /* Forms and inputs */

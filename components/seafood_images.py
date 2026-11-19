@@ -37,14 +37,9 @@ def seafood_image_source(product: dict, project_dir: Path) -> str:
 
 
 def seafood_card_image(product: dict, project_dir: Path, height: int = 260) -> str:
-    """Return a consistent fixed-ratio image frame for catalogue cards.
-
-    The shared design system uses ``object-fit: cover`` inside this frame:
-    images retain their proportions with no distortion or letterboxing while
-    product-card rows remain aligned.
-    """
+    """Return a consistent fixed-ratio frame that shows the complete image."""
     source = escape(seafood_image_source(product, project_dir), quote=True)
     name = escape(str(product.get("product_name") or "Seafood"), quote=True)
     return f'''<div class="aq-seafood-card-image">
-      <img src="{source}" alt="{name}" loading="eager" decoding="async" style="max-height:{height}px" />
+      <img src="{source}" alt="{name}" loading="lazy" decoding="async" style="max-height:{height}px;object-fit:contain;object-position:center" />
     </div>'''

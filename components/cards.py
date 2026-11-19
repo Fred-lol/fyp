@@ -13,6 +13,18 @@ def metric_card(label, value, help_text=""):
     """)
 
 
+def info_card(label, value, help_text=""):
+    """Compact, equal-height information card with complete wrapping values."""
+    safe_help = f'<div class="aq-info-help">{html.escape(str(help_text))}</div>' if help_text else ""
+    st.html(f"""
+    <div class="aq-info-card">
+      <div class="aq-info-label">{html.escape(str(label))}</div>
+      <div class="aq-info-value">{html.escape(str(value))}</div>
+      {safe_help}
+    </div>
+    """)
+
+
 def empty_state(message):
     st.info(message)
 

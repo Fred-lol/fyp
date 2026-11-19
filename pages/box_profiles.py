@@ -9,6 +9,7 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from bootstrap import bootstrap_app
+from components.cards import info_card
 from components.navigation import require_staff, staff_sidebar
 from components.theme import apply_theme, page_header
 from constants import BOX_STATUSES
@@ -275,9 +276,9 @@ with add_tab:
         selected_label = st.selectbox("Box template", list(box_map), key="add_box_template")
         selected = box_map[selected_label]
         a, b, c = st.columns(3)
-        a.metric("Dimensions", f"{selected['length']:g} × {selected['width']:g} × {selected['height']:g} cm")
-        b.metric("Maximum Weight", f"{selected['max_seafood_weight_kg']:g} kg")
-        c.metric("Current Quantity", int(selected["inventory_quantity"] or 0))
+        with a: info_card("Dimensions", f"{selected['length']:g} × {selected['width']:g} × {selected['height']:g} cm")
+        with b: info_card("Maximum Weight", f"{selected['max_seafood_weight_kg']:g} kg")
+        with c: info_card("Current Quantity", int(selected["inventory_quantity"] or 0))
         with st.form("add_box_inventory_form", clear_on_submit=True):
             st.number_input("Quantity to add", min_value=1, value=1, step=1, key="add_box_quantity")
             st.text_input("Note (optional)", placeholder="Example: New box delivery", key="add_box_note")

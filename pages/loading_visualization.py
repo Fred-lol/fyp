@@ -11,6 +11,7 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from bootstrap import bootstrap_app
+from components.cards import info_card
 from components.theme import apply_theme, page_header
 from components.navigation import staff_sidebar, require_staff
 from components.alert_theme import notification_css
@@ -316,10 +317,10 @@ if is_preview:
 st.markdown("## Loading Summary")
 s1, s2, s3, s4 = st.columns(4)
 weight_capacity_used = saved_weight_utilization(plan)
-s1.metric("Weight Capacity Used", f"{weight_capacity_used:.1f}%")
-s2.metric("Loaded Weight", f"{float(plan['total_weight']):,.1f} kg")
-s3.metric("Remaining Weight", f"{float(plan['remaining_weight_capacity']):,.1f} kg")
-s4.metric("Lorry Size", f"{plan['internal_length']:g}×{plan['internal_width']:g}×{plan['internal_height']:g} cm")
+with s1: info_card("Weight Capacity Used", f"{weight_capacity_used:.1f}%")
+with s2: info_card("Loaded Weight", f"{float(plan['total_weight']):,.1f} kg")
+with s3: info_card("Remaining Weight", f"{float(plan['remaining_weight_capacity']):,.1f} kg")
+with s4: info_card("Lorry Size", f"{plan['internal_length']:g} × {plan['internal_width']:g} × {plan['internal_height']:g} cm")
 
 st.markdown("## Loading Sequence")
 st.caption("Sequence 1 is loaded first at the deepest available end and continues toward the rear loading gate.")
