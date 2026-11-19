@@ -16,6 +16,7 @@ st.html('''<section class="aq-public-intro"><div class="aq-public-kicker">About 
 <p>Based at LKIM Kuala Perlis, AquaLoad brings wholesale seafood ordering and day-to-day loading work into one clear process.</p></section>''')
 
 photo = next((path for path in (
+    PROJECT_DIR / "assets" / "lkim.png",
     PROJECT_DIR / "assets" / "kuala_perlis_harbour.jpg",
     PROJECT_DIR / "assets" / "kuala_perlis_harbour.jpeg",
     PROJECT_DIR / "assets" / "kuala_perlis_harbour.png",
