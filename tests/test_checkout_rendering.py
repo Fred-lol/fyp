@@ -61,6 +61,7 @@ def test_checkout_ui_validation_and_single_summary(monkeypatch, method):
         assert 'mobile' in app.session_state['payment_errors']
         app.text_input(key='payment_duitnow_mobile').set_value('01112345678')
     elif method=='Credit / Debit Card':
+        assert {'cardholder','card_number','expiry','cvv'} <= set(app.session_state['payment_errors'])
         app.text_input(key='payment_cardholder').set_value('Test Customer')
         app.text_input(key='payment_card_number').set_value('4242 4242 4242 4242')
         app.text_input(key='payment_expiry').set_value('12/29')
