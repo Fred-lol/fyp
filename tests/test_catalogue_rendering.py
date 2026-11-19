@@ -67,11 +67,13 @@ def catalogue_app(monkeypatch):
     return app, customer_favorites
 
 
-def test_product_image_opens_details_without_losing_customer_session(catalogue_app):
+def test_view_details_opens_product_without_losing_customer_session(catalogue_app):
     app, _ = catalogue_app
     app.run()
     assert not app.exception
-    app.button(key="product_image_31").click().run()
+    assert len([button for button in app.button if button.label == "View Details"]) == 1
+    assert not any(button.key == "product_image_31" for button in app.button)
+    app.button(key="view_details_31").click().run()
     assert not app.exception
     assert app.session_state["logged_in"] is True
     assert app.session_state["user_id"] == 8
@@ -89,7 +91,7 @@ def test_favorite_persists_and_add_to_cart_returns_to_catalogue(catalogue_app):
     assert favorite_ids == {31}
     assert app.session_state["favorite_product_ids"] == {31}
 
-    app.button(key="product_image_31").click().run()
+    app.button(key="view_details_31").click().run()
     assert app.session_state["selected_seafood_id"] == 31
     app.button(key="detail_add_to_cart").click().run()
     assert not app.exception

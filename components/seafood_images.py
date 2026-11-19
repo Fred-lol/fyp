@@ -40,6 +40,6 @@ def seafood_card_image(product: dict, project_dir: Path, height: int = 260) -> s
     """Return a consistent fixed-ratio frame that shows the complete image."""
     source = escape(seafood_image_source(product, project_dir), quote=True)
     name = escape(str(product.get("product_name") or "Seafood"), quote=True)
-    return f'''<div class="aq-seafood-card-image">
-      <img src="{source}" alt="{name}" loading="lazy" decoding="async" style="max-height:{height}px;object-fit:contain;object-position:center" />
+    return f'''<div class="aq-seafood-card-image" style="width:100%;aspect-ratio:4/3;overflow:hidden;border-radius:9px;background:#f2f5f6;line-height:0">
+      <img src="{source}" alt="{name}" loading="lazy" decoding="async" style="display:block;width:100%;height:100%;max-height:{height}px;object-fit:contain;object-position:center;background:#f2f5f6" />
     </div>'''

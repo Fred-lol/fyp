@@ -5,7 +5,6 @@ from components.seafood_images import seafood_card_image
 
 
 def test_catalogue_and_details_use_contained_fixed_ratio_images():
-    assert "background-size:contain!important" in COMMERCE_CSS
     assert "aspect-ratio:4/3" in COMMERCE_CSS
     assert "object-fit:contain!important" in COMMERCE_CSS
     assert "object-fit:cover" not in COMMERCE_CSS
@@ -20,6 +19,6 @@ def test_catalogue_and_details_use_contained_fixed_ratio_images():
 
 
 def test_image_button_and_favorite_have_visible_focus_and_overlay_styles():
-    assert "button:focus-visible:after" in COMMERCE_CSS
     assert "st-key-favorite_" in COMMERCE_CSS
     assert "z-index:5" in COMMERCE_CSS
+    assert 'content:"View details"' not in COMMERCE_CSS

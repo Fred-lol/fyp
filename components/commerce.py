@@ -1,10 +1,9 @@
 """Compact seafood catalogue cards and a separate detail presentation."""
 from html import escape
-import json
 
 import streamlit as st
 
-from components.seafood_images import seafood_card_image, seafood_image_source
+from components.seafood_images import seafood_card_image
 from constants import LOW_STOCK_THRESHOLD, MIN_WHOLESALE_ORDER_KG
 
 
@@ -13,11 +12,9 @@ COMMERCE_CSS = """
 .st-key-catalogue_grid[data-testid="stVerticalBlock"]{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px!important;align-items:stretch}
 .st-key-catalogue_grid [class*="st-key-product_"][data-testid="stVerticalBlock"]{position:relative;display:flex!important;flex-direction:column!important;gap:10px!important;height:100%;box-sizing:border-box;padding:12px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:13px!important;box-shadow:0 6px 18px rgba(8,46,75,.055)!important;min-width:0;transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease}
 .st-key-catalogue_grid [class*="st-key-product_"][data-testid="stVerticalBlock"]:hover{border-color:color-mix(in srgb,var(--aq-teal) 55%,var(--aq-border))!important;box-shadow:0 12px 26px rgba(8,46,75,.10)!important;transform:translateY(-2px)}
-.st-key-catalogue_grid [class*="st-key-product_image_"]{width:100%;margin:0!important}
-.st-key-catalogue_grid [class*="st-key-product_image_"] button{position:relative!important;display:block!important;width:100%!important;height:auto!important;aspect-ratio:4/3!important;min-height:0!important;padding:0!important;border:1px solid rgba(8,46,75,.12)!important;border-radius:9px!important;background-color:#f2f5f6!important;background-position:center!important;background-size:contain!important;background-repeat:no-repeat!important;box-shadow:none!important;overflow:hidden!important;font-size:0!important;color:transparent!important}
-.st-key-catalogue_grid [class*="st-key-product_image_"] button p{font-size:0!important;color:transparent!important}
-.st-key-catalogue_grid [class*="st-key-product_image_"] button:after{content:"View details";position:absolute;inset:auto 10px 10px;display:grid;place-items:center;min-height:36px;border-radius:7px;background:rgba(6,35,55,.88);color:#fff;font-size:13px;font-weight:700;opacity:0;transition:opacity .16s ease}
-.st-key-catalogue_grid [class*="st-key-product_image_"] button:hover:after,.st-key-catalogue_grid [class*="st-key-product_image_"] button:focus-visible:after{opacity:1}
+.st-key-catalogue_grid .aq-product-image-frame{width:100%;margin:0!important}
+.st-key-catalogue_grid .aq-product-image-frame .aq-seafood-card-image{width:100%;aspect-ratio:4/3;height:auto;border:1px solid rgba(8,46,75,.12);border-radius:9px;overflow:hidden;line-height:0;background:#f2f5f6}
+.st-key-catalogue_grid .aq-product-image-frame img{display:block;width:100%;height:100%;max-height:none!important;object-fit:contain!important;object-position:center;background:#f2f5f6}
 .st-key-catalogue_grid [class*="st-key-favorite_"]{position:absolute!important;top:17px;right:17px;z-index:4;width:36px;height:36px;margin:0!important}
 .st-key-catalogue_grid [class*="st-key-favorite_"] button{width:36px!important;height:36px!important;min-height:36px!important;padding:0!important;border-radius:50%!important;background:#fff!important;border:1px solid rgba(8,46,75,.16)!important;color:#b42345!important;box-shadow:0 2px 8px rgba(8,46,75,.2)!important;position:relative!important;z-index:5!important}
 .st-key-catalogue_grid [class*="st-key-favorite_"] button *{color:#b42345!important;fill:currentColor!important;stroke:currentColor!important}
@@ -40,30 +37,19 @@ def product_card(product, project_dir, on_open, *, is_favorite=False, on_favorit
     """Render a compact card. Its image and explicit action both open details."""
     product_id = int(product["product_id"])
     name = escape(str(product["product_name"]))
-    source = seafood_image_source(product, project_dir)
-    css_url = json.dumps(source)
     stock = float(product.get("stock_quantity") or 0)
     unit = escape(product.get("unit") or "kg")
     low = stock <= LOW_STOCK_THRESHOLD
-    icon = ":material/favorite:" if is_favorite else ":material/favorite_border:"
+    icon = "♥" if is_favorite else "♡"
     with st.container(key=f"product_{product_id}"):
         st.button(
             icon,
             key=f"favorite_{product_id}",
             type="tertiary",
-            help=("Remove from favorites" if is_favorite else "Add to favorites"),
             on_click=on_favorite,
             args=(product_id,),
         )
-        st.html(f'<style>.st-key-product_image_{product_id} button{{background-image:url({css_url})!important}}</style>')
-        st.button(
-            f"Open details for {product['product_name']}",
-            key=f"product_image_{product_id}",
-            type="tertiary",
-            on_click=on_open,
-            args=(product_id,),
-            help=f"Open details for {product['product_name']}",
-        )
+        st.html(f'<div class="aq-product-image-frame">{seafood_card_image(product, project_dir)}</div>')
         st.html(f'<div class="aq-product-name">{name}</div>')
         st.html(f'<div class="aq-product-pricing"><strong>RM {float(product.get("unit_price") or 0):,.2f}</strong><small>/ {unit}</small></div>')
         stock_class = " aq-low" if low else ""
