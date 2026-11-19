@@ -46,8 +46,6 @@ def test_checkout_ui_validation_and_single_summary(monkeypatch, method):
     app.button(key=f"payment_method_select_{method_keys[method]}").click().run()
     app.selectbox(key='payment_point_id').set_value(1).run()
     press()
-    if method != 'DuitNow Mobile Number':
-        assert 'demo_confirmed' in app.session_state['payment_errors']
     if method=='Online Banking (FPX)':
         assert 'bank' in app.session_state['payment_errors']
         app.selectbox(key='payment_bank').set_value('Maybank2u')
@@ -56,7 +54,7 @@ def test_checkout_ui_validation_and_single_summary(monkeypatch, method):
         app.text_input(key='payment_wallet_mobile').set_value('011123')
         press()
         assert 'mobile' in app.session_state['payment_errors']
-        app.text_input(key='payment_wallet_mobile').set_value('+601112345678')
+        app.text_input(key='payment_wallet_mobile').set_value('01112345678')
     elif method=='DuitNow Mobile Number':
         assert 'mobile' in app.session_state['payment_errors']
         app.text_input(key='payment_duitnow_mobile').set_value('01112345678')
@@ -66,8 +64,6 @@ def test_checkout_ui_validation_and_single_summary(monkeypatch, method):
         app.text_input(key='payment_card_number').set_value('4242 4242 4242 4242')
         app.text_input(key='payment_expiry').set_value('12/29')
         app.text_input(key='payment_cvv').set_value('123')
-    if method != 'DuitNow Mobile Number':
-        app.checkbox(key='demo_confirmed_'+method).check()
     press()
     assert not app.exception
     assert calls['submit']==1 and calls['summary']==1

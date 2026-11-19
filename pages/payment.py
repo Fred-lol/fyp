@@ -25,21 +25,44 @@ page_header("Review & place your order", "Choose your collection point and compl
 st.html("""<style>
 .st-key-checkout_summary,.st-key-checkout_payment{padding:24px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important}
 .st-key-checkout_payment [data-testid="stForm"]{border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important}
-.st-key-payment_method_choices [data-testid="stHorizontalBlock"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important}
+.st-key-payment_method_choices [data-testid="stHorizontalBlock"]{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important}
 .st-key-payment_method_choices [data-testid="column"]{width:auto!important;min-width:0!important;flex:initial!important;box-sizing:border-box!important}
-.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{width:100%!important;min-height:72px!important;padding:12px 14px!important;justify-content:flex-start!important;text-align:left!important;white-space:normal!important;line-height:1.3!important;background:var(--aq-card2)!important;color:var(--aq-text)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important;box-shadow:none!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{width:100%!important;min-height:88px!important;padding:12px 10px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-align:center!important;white-space:nowrap!important;line-height:1.25!important;background:var(--aq-card2)!important;color:var(--aq-text)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important;box-shadow:none!important}
 .st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button:hover{border-color:var(--aq-teal)!important;transform:translateY(-1px)!important}
-.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button *{color:inherit!important;white-space:normal!important}
-.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button p{line-height:1.35!important;text-align:left!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button *{color:inherit!important;white-space:nowrap!important}
+.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button p{font-size:clamp(.75rem,.9vw,.9rem)!important;line-height:1.25!important;text-align:center!important;margin:0!important}
 .aq-checkout-total{display:flex;justify-content:space-between;align-items:baseline;padding:20px 0;color:var(--aq-text)}.aq-checkout-total strong{font-size:24px}
 .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button:focus-visible{outline:3px solid var(--aq-cyan)!important;outline-offset:2px!important}
+.aq-numeric-error{color:var(--aq-status-danger-text)!important;font-size:.82rem!important;margin-top:.2rem!important}
 @media(max-width:600px){.st-key-checkout_summary,.st-key-checkout_payment{padding:16px!important}.aq-checkout-total strong{font-size:21px!important}}
+@media(max-width:420px){.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{min-height:82px!important;padding:8px 4px!important}.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button p{font-size:.68rem!important}}
 </style>""")
 
 
 def field_error(errors, field):
     if errors.get(field):
         st.error(errors[field])
+
+
+def sanitize_numeric(value, limit, *, groups=None, slash_after=None):
+    """Normalize submitted numeric text and apply display formatting."""
+    digits = ''.join(character for character in str(value or '') if character.isascii() and character.isdigit())[:limit]
+    if slash_after and len(digits) > slash_after:
+        return digits[:slash_after] + '/' + digits[slash_after:]
+    if groups:
+        return ' '.join(digits[offset:offset + groups] for offset in range(0, len(digits), groups))
+    return digits
+
+
+def _install_payment_input_sanitizer():
+    # Streamlit form widgets do not support per-input callbacks. A tiny scoped
+    # listener sanitizes these four checkout inputs as users type or paste.
+    st.html("""<script>
+    (()=>{const parent=window.parent;let doc;try{doc=parent.document}catch(_){return}
+      const rules={'Test card number':{max:16,group:4},'Expiry (MM/YY)':{max:4,slash:2},'Test CVV':{max:3},'DuitNow mobile number':{max:11},'Mobile number':{max:11}};
+      const apply=()=>{for(const input of doc.querySelectorAll('input[aria-label]')){const rule=rules[input.getAttribute('aria-label')];if(!rule||input.dataset.aqSanitize)return;input.dataset.aqSanitize='1';input.inputMode='numeric';input.addEventListener('input',()=>{const start=input.selectionStart;const before=input.value;let digits=Array.from(before).filter(ch=>ch>='0'&&ch<='9').join('').slice(0,rule.max);let value=digits;if(rule.group)value=digits.match(/.{1,4}/g)?.join(' ')||'';if(rule.slash&&digits.length>rule.slash)value=digits.slice(0,rule.slash)+'/'+digits.slice(rule.slash);if(value!==before){input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));const pos=Math.min(value.length,start||value.length);input.setSelectionRange(pos,pos)}})}};
+      apply();new MutationObserver(apply).observe(doc.body,{childList:true,subtree:true});})();
+    </script>""")
 
 
 def submit_demo_order(cart, point_id, method, details, total):
@@ -72,12 +95,10 @@ def submit_demo_order(cart, point_id, method, details, total):
 
 
 def choose_payment_method(method):
-    """Select a payment card and require a fresh demo acknowledgement."""
+    """Select one payment method and clear prior method-specific values."""
     if method != st.session_state.get("payment_method"):
         st.session_state.payment_method = method
         st.session_state.payment_errors = {}
-        for selected_method in PAYMENT_METHODS:
-            st.session_state[f"demo_confirmed_{selected_method}"] = False
         # Keep payment inputs short-lived in browser-backed session state; a
         # method switch clears old details instead of retaining them hidden.
         for key in (
@@ -105,19 +126,21 @@ def render_payment(cart, point_id, total):
         for column, payment_method in zip(first_row + second_row, PAYMENT_METHODS):
             slug, icon, label = labels[payment_method]
             with column:
+                selected = payment_method == method
                 st.button(
-                    f'{"✓  " if payment_method == method else ""}{label}',
+                    f'{"✓  " if selected else ""}{label}',
                     key=f'payment_method_select_{slug}',
                     icon=icon,
                     help=f'Select {label}',
                     on_click=choose_payment_method,
                     args=(payment_method,),
                     use_container_width=True,
+                    type='primary' if selected else 'secondary',
                 )
     # Explicit class selector styles selected as Streamlit's card button itself.
     if method in labels:
         selected_slug = labels[method][0]
-        st.html(f'<style>.st-key-checkout_payment .st-key-payment_method_choices .st-key-payment_method_select_{selected_slug} button{{background:color-mix(in srgb,var(--aq-teal) 12%,var(--aq-card))!important;color:var(--aq-navy)!important;border:2px solid var(--aq-teal)!important;box-shadow:0 3px 12px color-mix(in srgb,var(--aq-teal) 12%,transparent)!important}}</style>')
+        st.html(f'<style>.st-key-checkout_payment .st-key-payment_method_choices .st-key-payment_method_select_{selected_slug} button{{background:color-mix(in srgb,var(--aq-teal) 14%,var(--aq-card))!important;color:var(--aq-navy)!important;border:2px solid var(--aq-teal)!important;box-shadow:0 3px 12px color-mix(in srgb,var(--aq-teal) 12%,transparent)!important}}</style>')
     errors = st.session_state.get('payment_errors', {})
     field_error(errors, 'method')
     if method is None:
@@ -128,41 +151,40 @@ def render_payment(cart, point_id, total):
             st.caption('Test cards only. Never enter a real card number or security code. No payment is processed.')
             details['cardholder'] = st.text_input('Cardholder name (test)', placeholder='Test Customer', key='payment_cardholder', autocomplete='off')
             field_error(errors, 'cardholder')
-            details['card_number'] = st.text_input('Test card number', placeholder='4242 4242 4242 4242', key='payment_card_number', autocomplete='off')
+            details['card_number'] = st.text_input('Test card number', placeholder='4242 4242 4242 4242', key='payment_card_number', autocomplete='off', max_chars=19)
             field_error(errors, 'card_number')
-            st.caption('Examples: Visa 4242 4242 4242 4242 · Mastercard 5555 5555 5555 4444 · Amex 3782 822463 10005')
+            st.caption('Test numbers: Visa 4242 4242 4242 4242 · Mastercard 5555 5555 5555 4444')
             exp_col, cvv_col = st.columns(2)
             with exp_col:
                 details['expiry'] = st.text_input('Expiry (MM/YY)', placeholder='MM/YY', max_chars=5, key='payment_expiry', autocomplete='off')
                 field_error(errors, 'expiry')
             with cvv_col:
-                details['cvv'] = st.text_input('Test CVV', placeholder='123', max_chars=4, type='password', key='payment_cvv', autocomplete='off')
+                details['cvv'] = st.text_input('Test CVV', placeholder='123', max_chars=3, type='password', key='payment_cvv', autocomplete='off')
                 field_error(errors, 'cvv')
         elif method == 'Online Banking (FPX)':
             details['bank'] = st.selectbox('Malaysian bank', MALAYSIAN_BANKS, index=None, placeholder='Search or select your bank', key='payment_bank')
             field_error(errors, 'bank')
             st.caption('Demo authorization only. Never enter bank login details, passwords, or OTPs.')
         elif method == 'DuitNow Mobile Number':
-            details['mobile'] = st.text_input('DuitNow mobile number', placeholder='0123456789 or +60123456789', key='payment_duitnow_mobile', autocomplete='tel')
+            details['mobile'] = st.text_input('DuitNow mobile number', placeholder='0123456789 or 01112345678', key='payment_duitnow_mobile', autocomplete='tel', max_chars=11)
             field_error(errors, 'mobile')
             st.caption('011 numbers are supported. This number is used only for demo validation and is not saved.')
         elif method == 'E-Wallet':
             details['wallet'] = st.selectbox('E-wallet provider', MALAYSIAN_EWALLETS, index=None, placeholder='Select your e-wallet', key='payment_wallet')
             field_error(errors, 'wallet')
-            details['mobile'] = st.text_input('Mobile number', placeholder='0123456789', key='payment_wallet_mobile')
+            details['mobile'] = st.text_input('Mobile number', placeholder='0123456789', key='payment_wallet_mobile', max_chars=11)
             field_error(errors, 'mobile')
-        if method and method != 'DuitNow Mobile Number':
-            confirmation_label = {
-                'Credit / Debit Card': 'I confirm these are test card details only.',
-                'Online Banking (FPX)': 'Confirm simulated FPX authorization.',
-                'E-Wallet': 'Confirm this simulated e-wallet payment.',
-            }[method]
-            details['demo_confirmed'] = st.checkbox(confirmation_label, key='demo_confirmed_'+method)
-            field_error(errors, 'demo_confirmed')
         st.html(f'<div class="aq-checkout-total"><span>Demo order total</span><strong>RM {total:,.2f}</strong></div>')
         field_error(errors, 'form')
         submitted = st.form_submit_button('Place Demo Order', type='primary', width='stretch', disabled=st.session_state.get('checkout_busy', False))
+    _install_payment_input_sanitizer()
     if submitted:
+        if method == 'Credit / Debit Card':
+            details['card_number'] = sanitize_numeric(details.get('card_number'), 16, groups=4)
+            details['expiry'] = sanitize_numeric(details.get('expiry'), 4, slash_after=2)
+            details['cvv'] = sanitize_numeric(details.get('cvv'), 3)
+        elif method in {'DuitNow Mobile Number', 'E-Wallet'}:
+            details['mobile'] = sanitize_numeric(details.get('mobile'), 11)
         submit_demo_order(cart, point_id, method, details, total)
         st.rerun()
 

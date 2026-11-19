@@ -22,7 +22,7 @@ MALAYSIAN_BANKS = [
 MALAYSIAN_EWALLETS = [
     "Touch 'n Go eWallet", "GrabPay", "Boost", "ShopeePay", "MAE",
 ]
-DEMO_TEST_CARDS = {"4242424242424242", "5555555555554444", "378282246310005"}
+DEMO_TEST_CARDS = {"4242424242424242", "5555555555554444"}
 
 
 def _luhn(number):
@@ -60,8 +60,8 @@ def validate_payment_details(payment_method, details):
         cvv = str(details.get("cvv") or "").strip()
         if not 2 <= len(name) <= 80 or not re.fullmatch(r"[A-Za-z][A-Za-z .'-]*", name):
             errors["cardholder"] = "Enter the name on the test card (2–80 letters)."
-        if not number.isascii() or not number.isdigit() or len(number) not in (15, 16) or not _luhn(number):
-            errors["card_number"] = "Enter a valid 15 or 16 digit test card number."
+        if not number.isascii() or not number.isdigit() or len(number) != 16 or not _luhn(number):
+            errors["card_number"] = "Enter a valid 16-digit test card number."
         elif number not in DEMO_TEST_CARDS:
             errors["card_number"] = "Only the example test cards shown below are accepted. Do not enter a real card."
         match = re.fullmatch(r"(0[1-9]|1[0-2])/([0-9]{2})", expiry)
@@ -72,8 +72,8 @@ def validate_payment_details(payment_method, details):
             today = date.today()
             if (year, month) < (today.year, today.month):
                 errors["expiry"] = "Use the current month or a future expiry."
-        if not re.fullmatch(r"[0-9]{4}" if number.startswith("3782") else r"[0-9]{3}", cvv):
-            errors["cvv"] = "Enter a 4 digit test CVV for Amex, or 3 digits for Visa/Mastercard."
+        if not re.fullmatch(r"[0-9]{3}", cvv):
+            errors["cvv"] = "Enter exactly 3 digits for the test CVV."
     if payment_method == "Online Banking (FPX)" and details.get("bank") not in MALAYSIAN_BANKS:
         errors["bank"] = "Select a supported Malaysian bank."
     if payment_method == "DuitNow Mobile Number":
@@ -84,10 +84,6 @@ def validate_payment_details(payment_method, details):
             errors["wallet"] = "Select a supported e-wallet provider."
         if not _valid_malaysian_mobile(details.get("mobile")):
             errors["mobile"] = "Enter a Malaysian mobile number: 0123456789 or 01112345678. +60 format is also accepted."
-    # DuitNow intentionally asks for one field only; a validated mobile number
-    # authorizes the simulated step and is never persisted.
-    if payment_method != "DuitNow Mobile Number" and details.get("demo_confirmed") is not True:
-        errors["demo_confirmed"] = "Confirm the demo step to continue. No money will be charged."
     return errors
 
 

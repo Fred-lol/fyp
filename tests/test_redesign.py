@@ -19,11 +19,7 @@ def test_invalid_mobile(number):
  ('Credit / Debit Card', {'cardholder':'Test Customer','card_number':'4242 4242 4242 4242','expiry':'12/29','cvv':'123'}), ('Online Banking (FPX)', {'bank':'Maybank2u'}),
  ('DuitNow Mobile Number',{'mobile':'01112345678'}), ('E-Wallet',{'wallet':'Boost','mobile':'01112345678'})])
 def test_demo_methods(method,details):
-    if method == 'DuitNow Mobile Number':
-        assert not payment.validate_payment_details(method, details)
-    else:
-        assert 'demo_confirmed' in payment.validate_payment_details(method, details)
-        assert not payment.validate_payment_details(method, dict(details,demo_confirmed=True))
+    assert not payment.validate_payment_details(method, details)
 
 @pytest.mark.parametrize("method,details,field", [
  (None,{},'method'),('unknown',{},'method'),('Online Banking (FPX)',{'bank':'Fake'},'bank'),
