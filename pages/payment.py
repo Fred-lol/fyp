@@ -146,7 +146,7 @@ def render_payment(cart, point_id, total):
             st.caption('Test numbers: Visa 4242 4242 4242 4242 · Mastercard 5555 5555 5555 4444')
             exp_col, cvv_col = st.columns(2)
             with exp_col:
-                details['expiry'] = st.text_input('Expiry (MM/YY)', placeholder='MM/YY', max_chars=5, key='payment_expiry', autocomplete='off')
+                details['expiry'] = st.text_input('Expiry (MM/YY)', placeholder='MM/YY', key='payment_expiry', autocomplete='off')
                 field_error(errors, 'expiry')
             with cvv_col:
                 details['cvv'] = st.text_input('Test CVV', placeholder='123', max_chars=3, type='password', key='payment_cvv', autocomplete='off')

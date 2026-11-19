@@ -394,12 +394,22 @@ def _restore_order_stock(conn, order_id, updated_by, movement_type="Order Cancel
         )
 
 
+def cancellation_customer_message(payment_status):
+    """Return accurate customer-facing cancellation feedback for payment state."""
+    if payment_status in {"Paid", "Refunded"}:
+        return "Order cancelled successfully. Your payment will be refunded within 14 days."
+    if payment_status in {"Simulated", "Demo Cancelled"}:
+        return "Order cancelled successfully. No money was charged for this demo payment, so no refund is due."
+    return "Order cancelled successfully. No payment was collected, so no refund is due."
+
+
 def cancel_order(order_id, customer_id):
     order = get_order(order_id, customer_id)
     if not order:
         return False, "Order not found."
     if order["status"] not in CANCELLABLE_ORDER_STATUSES:
         return False, "This order can no longer be cancelled."
+    payment_status = (order.get("payment") or {}).get("payment_status")
     with db_session() as conn:
         _restore_order_stock(conn, order_id, customer_id)
         conn.execute(
@@ -413,9 +423,9 @@ def cancel_order(order_id, customer_id):
         conn.execute("UPDATE payments SET payment_status=CASE WHEN payment_status='Simulated' THEN 'Demo Cancelled' ELSE 'Refunded' END WHERE order_id=? AND payment_status IN ('Paid','Simulated')", (order_id,))
         conn.execute(
             "INSERT INTO order_status_history(order_id,status,updated_by,note) VALUES(?,?,?,?)",
-            (order_id, "Cancelled", customer_id, "Order cancelled by Customer."),
+            (order_id, "Cancelled", customer_id, cancellation_customer_message(payment_status)),
         )
-    return True, "Order cancelled successfully and reserved seafood stock was restored."
+    return True, cancellation_customer_message(payment_status)
 
 
 def archive_expired_completed_orders():
@@ -558,6 +568,13 @@ def update_order_status(order_id, new_status, updated_by, note=""):
                 return True, "Order confirmed and marked Ready for Pickup at LKIM Fisheries Complex Kuala Perlis. No lorry is required."
             return True, "Order confirmed and automatically marked Ready for Loading."
         if new_status == "Cancelled":
+            payment_row = conn.execute(
+                "SELECT payment_status FROM payments WHERE order_id=?",
+                (order_id,),
+            ).fetchone()
+            cancellation_notice = cancellation_customer_message(
+                payment_row["payment_status"] if payment_row else None
+            )
             _restore_order_stock(conn, order_id, updated_by, "Staff Cancellation")
             conn.execute("UPDATE payments SET payment_status=CASE WHEN payment_status='Simulated' THEN 'Demo Cancelled' ELSE 'Refunded' END WHERE order_id=? AND payment_status IN ('Paid','Simulated')", (order_id,))
         conn.execute(
@@ -570,9 +587,13 @@ def update_order_status(order_id, new_status, updated_by, note=""):
             """,
             (new_status, new_status, new_status, order_id),
         )
+        status_note = (
+            cancellation_notice if new_status == "Cancelled"
+            else note.strip() or f"Status manually updated from {current_status} to {new_status}."
+        )
         conn.execute(
             "INSERT INTO order_status_history(order_id,status,updated_by,note) VALUES(?,?,?,?)",
-            (order_id, new_status, updated_by, note.strip() or f"Status manually updated from {current_status} to {new_status}."),
+            (order_id, new_status, updated_by, status_note),
         )
         released_lorry = _release_lorry_after_completed_trip(conn, order_id) if new_status == "Completed" else None
     if new_status == "Completed":
@@ -580,6 +601,8 @@ def update_order_status(order_id, new_status, updated_by, note=""):
         if released_lorry:
             message += f" Lorry {released_lorry} is now Available for its next trip."
         return True, message
+    if new_status == "Cancelled":
+        return True, "Order cancelled. The customer cancellation notice is available in My Orders."
     return True, "Order status updated successfully."
 
 

@@ -28,11 +28,25 @@ def test_demo_methods(method,details):
 def test_invalid_demo_selection(method, details, field):
     assert field in payment.validate_payment_details(method,dict(details,demo_confirmed=True))
 
+
+@pytest.mark.parametrize("payment_status,message", [
+    ("Paid", "Order cancelled successfully. Your payment will be refunded within 14 days."),
+    ("Refunded", "Order cancelled successfully. Your payment will be refunded within 14 days."),
+    ("Simulated", "Order cancelled successfully. No money was charged for this demo payment, so no refund is due."),
+    ("Demo Cancelled", "Order cancelled successfully. No money was charged for this demo payment, so no refund is due."),
+    (None, "Order cancelled successfully. No payment was collected, so no refund is due."),
+])
+def test_cancellation_message_matches_payment_status(payment_status, message):
+    from services.order_service import cancellation_customer_message
+    assert cancellation_customer_message(payment_status) == message
+
+
 @pytest.mark.parametrize('field,value', [
     ('card_number','4111111111111111'),
     ('card_number','4242424242424241'),
     ('card_number','123'),
     ('cardholder',''),
+    ('cardholder','Test Customer2'),
     ('expiry','01/20'),
     ('expiry','13/29'),
     ('cvv','12'),

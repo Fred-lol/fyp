@@ -9,7 +9,13 @@ from components.theme import apply_theme,page_header
 from components.navigation import customer_sidebar
 from components.cards import empty_state
 from components.feedback import flash
-from services.order_service import list_customer_orders,get_order,update_customer_order,cancel_order
+from services.order_service import (
+    cancellation_customer_message,
+    list_customer_orders,
+    get_order,
+    update_customer_order,
+    cancel_order,
+)
 from constants import EDITABLE_ORDER_STATUSES,CANCELLABLE_ORDER_STATUSES
 bootstrap_app()
 
@@ -44,12 +50,24 @@ for o in orders:
         payment = detail.get("payment") or {}
         st.write(f"**Payment Status:** {payment.get('payment_status') or 'Not Paid'}")
         st.write(f"**Amount:** RM {float(payment.get('amount') or detail.get('total_amount') or 0):,.2f}")
+        admin_cancellation_notice = False
+        if detail["status"] == "Cancelled":
+            cancellation_event = next(
+                (entry for entry in reversed(detail.get("history", [])) if entry.get("status") == "Cancelled"),
+                None,
+            )
+            admin_cancellation_notice = bool(
+                cancellation_event
+                and str(cancellation_event.get("updated_by")) != str(st.session_state.user_id)
+            )
+            if admin_cancellation_notice:
+                st.info(cancellation_customer_message(payment.get("payment_status")))
         st.markdown("#### Order Progress")
         for index, history in enumerate(detail.get("history", []), start=1):
             label = "Current" if index == len(detail["history"]) else "Completed"
             st.markdown(f"**{label}: {history['status']}**")
             st.caption(f"{_friendly_timestamp(history.get('updated_at'))} · {history.get('updated_by_name') or 'System'}")
-            if history.get("note"):
+            if history.get("note") and history.get("status") != "Cancelled":
                 st.write(history["note"])
         st.write("**Seafood Items**")
         is_paid = payment.get("payment_status") in {"Paid", "Simulated"}

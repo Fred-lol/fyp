@@ -11,6 +11,7 @@ def numeric_payment_input_guard() -> str:
     return r"""<script>
 (() => {
   const rules = {
+    'Cardholder name (test)': { name: true },
     'Test card number': { max: 16, grouping: 4 },
     'Expiry (MM/YY)': { max: 4, slash: 2 },
     'Test CVV': { max: 3 },
@@ -62,10 +63,65 @@ def numeric_payment_input_guard() -> str:
   function install(input, rule) {
     if (input.dataset.aqNumericGuard === 'on') return;
     input.dataset.aqNumericGuard = 'on';
+    if (rule.name) {
+      const stripDigits = (value) => Array.from(String(value || ''))
+        .filter((character) => !/\p{N}/u.test(character))
+        .join('');
+      input.addEventListener('beforeinput', (event) => {
+        if (event.inputType?.startsWith('insert') && event.data && /\p{N}/u.test(event.data)) event.preventDefault();
+      });
+      input.addEventListener('keydown', (event) => {
+        if (!event.ctrlKey && !event.metaKey && !event.altKey && /\p{N}/u.test(event.key)) event.preventDefault();
+      });
+      input.addEventListener('paste', (event) => {
+        event.preventDefault();
+        const value = input.value;
+        const start = input.selectionStart ?? value.length;
+        const end = input.selectionEnd ?? start;
+        const inserted = stripDigits(event.clipboardData?.getData('text') || '');
+        const next = `${value.slice(0, start)}${inserted}${value.slice(end)}`;
+        setReactAwareValue(input, stripDigits(next));
+        const removedBeforeCaret = Array.from(value.slice(0, start)).filter((character) => /\p{N}/u.test(character)).length;
+        const caret = Math.max(0, start - removedBeforeCaret) + inserted.length;
+        input.setSelectionRange(caret, caret);
+      });
+      input.addEventListener('input', () => {
+        const current = input.value;
+        const cursor = input.selectionStart ?? current.length;
+        const cleaned = stripDigits(current);
+        if (cleaned === current) return;
+        const removedBeforeCaret = Array.from(current.slice(0, cursor)).filter((character) => /\p{N}/u.test(character)).length;
+        setReactAwareValue(input, cleaned);
+        const caret = Math.max(0, cursor - removedBeforeCaret);
+        input.setSelectionRange(caret, caret);
+      });
+      const cleaned = stripDigits(input.value);
+      if (cleaned !== input.value) setReactAwareValue(input, cleaned);
+      return;
+    }
     input.setAttribute('inputmode', 'numeric');
     input.setAttribute('pattern', '[0-9]*');
     input.setAttribute('autocomplete', 'off');
     input.setAttribute('maxlength', String(rule.max + (rule.grouping ? Math.floor((rule.max - 1) / rule.grouping) : rule.slash ? 1 : 0)));
+
+    let digitCounter;
+    if (rule.slash) {
+      const widget = input.closest('[data-testid="stTextInput"]');
+      const label = widget?.querySelector('label');
+      if (label) {
+        digitCounter = document.createElement('span');
+        digitCounter.className = 'aq-payment-digit-counter';
+        digitCounter.setAttribute('aria-live', 'polite');
+        digitCounter.style.cssText = 'margin-left:auto;padding-left:12px;font-size:.75rem;font-weight:400;color:var(--aq-muted,#8295a5);white-space:nowrap';
+        label.style.display = 'flex';
+        label.style.alignItems = 'center';
+        label.appendChild(digitCounter);
+      }
+    }
+    const updateDigitCounter = () => {
+      if (digitCounter) digitCounter.textContent = `${digitsOnly(input.value, rule).length}/${rule.max}`;
+    };
+    updateDigitCounter();
 
     input.addEventListener('beforeinput', (event) => {
       if (!event.inputType || !event.inputType.startsWith('insert') || event.inputType === 'insertFromPaste') return;
@@ -101,6 +157,7 @@ def numeric_payment_input_guard() -> str:
     });
 
     input.addEventListener('input', () => {
+      updateDigitCounter();
       const oldValue = input.value;
       const oldCursor = input.selectionStart ?? oldValue.length;
       const offset = digitOffset(oldValue, oldCursor, rule);
