@@ -1,6 +1,5 @@
 """Compact catalogue cards and a separate ordering details view."""
 from html import escape
-from urllib.parse import urlencode
 import streamlit as st
 from components.seafood_images import seafood_card_image
 from constants import LOW_STOCK_THRESHOLD, MIN_WHOLESALE_ORDER_KG
@@ -10,7 +9,7 @@ COMMERCE_CSS = """
 .st-key-catalogue_grid[data-testid="stVerticalBlock"]{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px!important}
 .st-key-catalogue_grid [class*="st-key-product_"]{height:100%;box-sizing:border-box;padding:14px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important;box-shadow:none!important;min-width:0}
 .st-key-catalogue_grid [class*="st-key-product_"][data-testid="stVerticalBlock"]{display:flex!important;flex-direction:column!important;gap:10px!important;height:100%}
-.aq-catalogue-link{display:block;color:var(--aq-text)!important;text-decoration:none!important;height:100%}.aq-catalogue-link:hover .aq-product-heading h3{color:var(--aq-teal)!important}.aq-catalogue-link:focus-visible{outline:3px solid var(--aq-teal);outline-offset:4px;border-radius:8px}
+.st-key-catalogue_grid [class*="st-key-view_product_"] button{justify-content:flex-start!important;text-align:left!important;width:100%;padding:4px 0!important;background:transparent!important;border:0!important;box-shadow:none!important;color:var(--aq-text)!important;font-size:18px!important;font-weight:700!important}.st-key-catalogue_grid [class*="st-key-view_product_"] button:hover{color:var(--aq-teal)!important}
 .aq-detail-image .aq-seafood-card-image{width:100%;height:320px;border-radius:10px;overflow:hidden;line-height:0}.aq-detail-image img{display:block;width:100%;height:100%;max-height:none!important;object-fit:cover}.aq-detail-meta{color:var(--aq-muted);margin:8px 0 16px}.aq-detail-description{line-height:1.65;color:var(--aq-text)}.aq-detail-price{font-size:25px;font-weight:750;color:var(--aq-text);margin:18px 0 10px}.aq-detail-stock{color:var(--aq-teal);font-weight:650}
 .st-key-catalogue_grid .aq-seafood-card-image{width:100%;overflow:hidden;line-height:0;height:auto!important;aspect-ratio:4/3;border:0!important;border-radius:8px!important}
 .st-key-catalogue_grid .aq-seafood-card-image img{display:block;width:100%!important;max-height:none!important;height:100%!important;object-fit:cover!important}
@@ -32,20 +31,19 @@ COMMERCE_CSS = """
 </style>
 """
 
-def product_card(product, project_dir, *, search="", category="All"):
-    """Render a clickable catalogue card using real product data."""
+def product_card(product, project_dir, on_open):
+    """Render a catalogue card with native in-session detail navigation."""
     product_id = product['product_id']
     stock = float(product.get('stock_quantity') or 0)
-    name = escape(product['product_name'])
     unit = escape(product.get('unit') or 'kg')
     status = 'Low stock' if stock <= LOW_STOCK_THRESHOLD else 'In stock'
-    href = '?' + urlencode({'product': product_id, 'search': search, 'category': category})
     with st.container(key=f'product_{product_id}'):
-        st.html(f'''<a class="aq-catalogue-link" href="{escape(href, quote=True)}" target="_self" aria-label="View details for {escape(product['product_name'], quote=True)}">
-        {seafood_card_image(product, project_dir)}
-        <div class="aq-product-heading"><h3>{name}</h3></div>
+        st.html(seafood_card_image(product, project_dir))
+        st.button(product['product_name'], key=f'view_product_{product_id}', on_click=on_open, args=(product_id,),
+                  help=f"View details for {product['product_name']}")
+        st.html(f'''
         <div class="aq-product-pricing"><strong>RM {float(product.get('unit_price') or 0):,.2f} <small>/ {unit}</small></strong></div>
-        <div class="aq-stock-dot">{status} &middot; {stock:g} {unit} available</div></a>''')
+        <div class="aq-stock-dot">{status} &middot; {stock:g} {unit} available</div>''')
 
 
 def product_details(product, project_dir, on_add):

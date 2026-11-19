@@ -20,7 +20,7 @@ def _clear_session():
     for key in [
         "logged_in", "user_id", "user_email", "user_role", "user_name",
         "selected_order_id", "selected_plan_id", "optimization_preview", "loading_plan_preview",
-        "portal_mode", "theme_preference", "cart", "checkout_cart", "last_paid_order_id",
+        "portal_mode", "theme_preference", "cart", "selected_seafood_id", "checkout_cart", "last_paid_order_id",
         "checkout_fingerprint", "checkout_snapshot", "checkout_points", "checkout_token",
         "checkout_busy", "payment_errors", "payment_success_pending"
     ]:

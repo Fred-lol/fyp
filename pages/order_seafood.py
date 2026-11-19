@@ -60,11 +60,15 @@ def _add_product_to_cart(product_id: int, product_name: str) -> None:
         st.session_state.catalogue_feedback = f"{product_name} {verb}."
         st.session_state.cart[product_id] = quantity
         st.session_state[f"cart_popover_quantity_{product_id}"] = quantity
-        st.query_params.pop("product", None)
+        st.session_state.pop("selected_seafood_id", None)
+
+
+def _open_product_details(product_id: int) -> None:
+    st.session_state.selected_seafood_id = product_id
 
 
 def _back_to_catalogue() -> None:
-    st.query_params.pop("product", None)
+    st.session_state.pop("selected_seafood_id", None)
 
 
 def _cart_quantity_available(product_id, quantity):
@@ -87,11 +91,9 @@ def _cart_quantity_available(product_id, quantity):
 def ordering_workspace() -> None:
     filters, category_filter, cart_action = st.columns([2.2, 1, .58], vertical_alignment="bottom")
     with filters:
-        search = st.text_input("Search seafood", placeholder="Search by seafood name", value=st.query_params.get("search", ""), key="catalogue_search")
+        search = st.text_input("Search seafood", placeholder="Search by seafood name", key="catalogue_search")
     with category_filter:
-        categories = ["All"] + product_categories()
-        saved_category = st.query_params.get("category", "All")
-        category = st.selectbox("Category", categories, index=categories.index(saved_category) if saved_category in categories else 0, key="catalogue_category")
+        category = st.selectbox("Category", ["All"] + product_categories(), key="catalogue_category")
     with cart_action:
         cart_summary = checkout_summary(list(st.session_state.cart.items()))
         with st.popover(f"Cart ({len(cart_summary['items'])})", icon=":material/shopping_cart:", help="Review cart", use_container_width=True):
@@ -138,7 +140,7 @@ def ordering_workspace() -> None:
         st.info("No seafood is currently available for this search or category. Please check again after stock is replenished.")
         return
 
-    selected_id = st.query_params.get("product")
+    selected_id = st.session_state.get("selected_seafood_id")
     if selected_id is not None:
         selected = next((product for product in products if str(product["product_id"]) == str(selected_id)), None)
         if selected is None:
@@ -151,7 +153,7 @@ def ordering_workspace() -> None:
 
     with st.container(key="catalogue_grid"):
         for product in products:
-            product_card(product, PROJECT_DIR, search=search, category=category)
+            product_card(product, PROJECT_DIR, _open_product_details)
 
 
 
