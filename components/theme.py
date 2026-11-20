@@ -360,16 +360,53 @@ div[class*="stElementToolbar"] button:hover{
 .stDownloadButton > button:disabled *,[data-testid="stFormSubmitButton"] > button:disabled *,
 [data-testid="stDownloadButton"] > button:disabled *{color:var(--aq-muted)!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
 
-/* Dark-mode text contrast for dataframe DOM overlays. Canvas cells and headers
-   receive native ink colors from components.tables; this rule covers the
-   dataframe's own column menus without affecting unrelated popovers. */
-.stDataFrameColumnMenu [role="menuitem"],
-.stDataFrameColumnFormattingMenu [role="menuitem"],
-.stDataFrameColumnVisibilityMenu [role="menuitem"],
-.stDataFrameButtonActionMenu [role="menuitem"],
-.stDataFrameStatisticsMenu,
-.stDataFrameStatisticsMenu *{
+/* Streamlit's canvas grid reads Glide Data Grid theme variables, not ordinary
+   descendant text CSS. AquaLoad keeps the existing white grid canvas in every
+   portal appearance, so set text ink only and leave every surface unchanged. */
+[data-testid="stDataFrame"] [class*="gdg-"],
+[data-testid="stDataEditor"] [class*="gdg-"]{
+  --gdg-text-dark:#173b58!important;
+  --gdg-text-medium:#173b58!important;
+  --gdg-text-light:#425e73!important;
+  --gdg-text-bubble:#173b58!important;
+  --gdg-text-header:#173b58!important;
+  --gdg-text-group-header:#173b58!important;
+  --gdg-text-header-selected:#173b58!important;
+}
+/* The dataframe popovers are React portals. These are their actual Streamlit
+   test IDs; keep the existing menu surface and make labels/icons follow the
+   active appearance tokens. */
+[data-testid="stDataFrameColumnMenu"],
+[data-testid="stDataFrameColumnFormattingMenu"],
+[data-testid="stDataFrameColumnVisibilityMenu"],
+[data-testid="stDataFrameButtonActionMenu"],
+[data-testid="stDataFrameStatisticsMenu"]{
+  color:#173b58!important;
+}
+[data-testid="stDataFrameColumnMenu"] [role="menuitem"],
+[data-testid="stDataFrameColumnFormattingMenu"] [role="menuitem"],
+[data-testid="stDataFrameColumnVisibilityMenu"] [role="menuitem"],
+[data-testid="stDataFrameButtonActionMenu"] [role="menuitem"],
+[data-testid="stDataFrameStatisticsMenu"] *{
+  color:#173b58!important;
+  fill:currentColor!important;
+  stroke:currentColor!important;
+}
+/* When Streamlit mounts a grid menu inside its themed popover, follow that
+   existing surface's foreground token instead of forcing light-canvas ink. */
+[data-baseweb="popover"] [data-testid="stDataFrameColumnMenu"],
+[data-baseweb="popover"] [data-testid="stDataFrameColumnFormattingMenu"],
+[data-baseweb="popover"] [data-testid="stDataFrameColumnVisibilityMenu"],
+[data-baseweb="popover"] [data-testid="stDataFrameButtonActionMenu"],
+[data-baseweb="popover"] [data-testid="stDataFrameStatisticsMenu"],
+[data-baseweb="popover"] [data-testid="stDataFrameColumnMenu"] *,
+[data-baseweb="popover"] [data-testid="stDataFrameColumnFormattingMenu"] *,
+[data-baseweb="popover"] [data-testid="stDataFrameColumnVisibilityMenu"] *,
+[data-baseweb="popover"] [data-testid="stDataFrameButtonActionMenu"] *,
+[data-baseweb="popover"] [data-testid="stDataFrameStatisticsMenu"] *{
   color:var(--aq-text)!important;
+  fill:currentColor!important;
+  stroke:currentColor!important;
 }
 [data-testid="stDataFrame"] input,[data-testid="stDataEditor"] input{
   color:#173b58!important;
