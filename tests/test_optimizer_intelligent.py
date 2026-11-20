@@ -121,7 +121,7 @@ def test_invalid_lorry_and_box_dimensions_fail_closed(bad):
 def test_capacity_and_impossible_mixed_dimensions_fail_with_specific_reason():
     too_heavy = generate_plan(lorry(weight=10), [box(weight=20)])
     assert not too_heavy["success"]
-    assert "over capacity" in too_heavy["message"]
+    assert "Loading capacity exceeded" in too_heavy["message"]
 
     impossible = generate_plan(lorry(100, 100, 30), [box(1, 60, 60, 30), box(2, 60, 60, 30)])
     assert not impossible["success"]

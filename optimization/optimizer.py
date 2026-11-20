@@ -8,7 +8,7 @@ budget.  Every candidate is independently validated before it can succeed.
 from math import isfinite
 from time import perf_counter
 
-from optimization.constraints import orientations, fully_supported
+from optimization.constraints import orientations, fully_supported, loading_sequence_key, stack_loads_valid
 from optimization.validation import boxes_overlap, inside_lorry, validate_plan
 from optimization.scoring import volume, utilization_percent, center_of_mass_xy
 
@@ -22,6 +22,8 @@ BASELINE_STRATEGIES = (
 )
 
 ENHANCED_STRATEGIES = (
+    ("largest_first", "section_first"),
+    ("heavy_first", "section_first"),
     ("largest_first", "balanced"),
     ("heavy_first", "balanced"),
     ("footprint_first", "depth_first"),
@@ -105,7 +107,8 @@ def _pack_baseline_once(lorry, boxes, order_strategy, position_strategy):
             candidate = _make_placement(box, position, dimensions)
             if (inside_lorry(candidate, lorry)
                     and not any(boxes_overlap(candidate, existing) for existing in placements)
-                    and fully_supported(candidate, placements)):
+                    and fully_supported(candidate, placements)
+                    and stack_loads_valid([*placements, candidate])):
                 placed = candidate
                 break
         if placed is None:
@@ -154,6 +157,8 @@ def _placement_score(candidate, placements, lorry, strategy, moments):
         tie_breaker = (abs(center_y - float(lorry["internal_width"]) / 2), x + y)
     else:
         tie_breaker = (y, x)
+    if strategy == "section_first":
+        return (round(far_x, 6), round(x, 6), round(z, 6), round(envelope, 6), -round(contact, 6), round(balance, 6))
     return (round(z, 6), round(envelope, 6), round(balance, 6), -round(contact, 6), *tie_breaker)
 
 
@@ -180,7 +185,8 @@ def _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, deadlin
                 candidate = _make_placement(box, position, dimensions)
                 if (inside_lorry(candidate, lorry)
                         and not any(boxes_overlap(candidate, existing) for existing in placements)
-                        and fully_supported(candidate, placements)):
+                        and fully_supported(candidate, placements)
+                    and stack_loads_valid([*placements, candidate])):
                     score = _placement_score(candidate, placements, lorry, position_strategy, moments)
                     if best_score is None or score < best_score:
                         best, best_score = candidate, score
@@ -191,7 +197,7 @@ def _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, deadlin
 
 
 def _compactness_score(placements, lorry):
-    far_x = max(item["x"] + item["placed_length"] for item in placements)
+    far_x = max(item["x"] + item["placed_length"] for item in placements) - min(item["x"] for item in placements)
     far_y = max(item["y"] + item["placed_width"] for item in placements)
     far_z = max(item["z"] + item["placed_height"] for item in placements)
     center_x, center_y = center_of_mass_xy(placements)
@@ -204,7 +210,7 @@ def _finalise_deep_loading_sequence(placements, lorry):
     lorry_length = float(lorry["internal_length"])
     for item in placements:
         item["x"] = lorry_length - item["x"] - item["placed_length"]
-    placements.sort(key=lambda item: (item["z"], -item["x"], item["y"], item["order_id"], item["box_instance"]))
+    placements.sort(key=loading_sequence_key)
     for sequence, item in enumerate(placements, start=1):
         item["sequence_number"] = sequence
 
@@ -257,9 +263,8 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0):
     maximum_weight = float(lorry["max_weight"])
     if total_weight > maximum_weight + 1e-9:
         return _failure(
-            f"{lorry.get('plate_number', 'Selected lorry')} cannot be used: selected orders total "
-            f"{total_weight:,.0f} kg, but its maximum is {maximum_weight:,.0f} kg "
-            f"({total_weight - maximum_weight:,.0f} kg over capacity)."
+            f"Loading capacity exceeded. Total load: {total_weight:,.0f} kg. "
+            f"Lorry capacity: {maximum_weight:,.0f} kg. Please select a larger lorry or reduce the load."
         )
 
     lorry_volume = volume(lorry["internal_length"], lorry["internal_width"], lorry["internal_height"])

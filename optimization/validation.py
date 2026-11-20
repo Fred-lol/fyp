@@ -1,7 +1,7 @@
 """Independent, fail-closed validation for packing coordinates and sequences."""
 from math import isfinite
 
-from optimization.constraints import fully_supported
+from optimization.constraints import fully_supported, loading_sequence_key, stack_loads_valid
 
 EPS = 1e-7
 
@@ -139,16 +139,18 @@ def validate_plan(placements, lorry, total_weight, expected_boxes=None):
         if all(values[name] > 0 for name in ("placed_length", "placed_width", "placed_height", "loaded_weight")):
             valid_prior.append(p)
 
+    if len(valid_prior) == len(placements) and not stack_loads_valid(valid_prior):
+        errors.append("Cumulative stack load exceeds the supporting box limit.")
+
     if sequence_numbers and sequence_numbers != list(range(1, len(placements) + 1)):
         errors.append("Loading sequence numbers must be unique and consecutive from 1.")
     try:
         physical_order = sorted(
             placements,
-            key=lambda p: (float(p["z"]), -float(p["x"]), float(p["y"]),
-                           int(p.get("order_id", 0)), int(p.get("box_instance", 0))),
+            key=loading_sequence_key,
         )
         if [p.get("sequence_number") for p in physical_order] != [p.get("sequence_number") for p in placements]:
-            errors.append("Loading sequence must proceed floor-to-top and from the deepest end toward the rear gate.")
+            errors.append("Loading sequence must proceed from the deepest end toward the rear gate, with supporting boxes first.")
     except (KeyError, TypeError, ValueError):
         errors.append("Loading sequence cannot be validated because placement coordinates or identities are invalid.")
 

@@ -6,6 +6,7 @@ from database.db import db_session
 from services.lorry_service import get_lorry
 from optimization.optimizer import generate_plan
 from optimization.validation import validate_plan
+from optimization.constraints import loading_sequence_key
 
 
 def build_box_instances(order_ids):
@@ -102,9 +103,8 @@ def preview_optimization(lorry_id, order_ids):
         return {
             "success": False,
             "message": (
-                f"{lorry['plate_number']} cannot be used: selected orders weigh {total_weight:,.0f} kg, "
-                f"but this lorry can carry only {max_weight:,.0f} kg. "
-                f"Choose a lorry with at least {total_weight:,.0f} kg capacity."
+                f"Loading capacity exceeded. Total load: {total_weight:,.0f} kg. "
+                f"Lorry capacity: {max_weight:,.0f} kg. Please select a larger lorry or reduce the load."
             ),
         }
     result = generate_plan(lorry, boxes)
@@ -369,9 +369,7 @@ def _read_plan(plan_id):
         lorry_length = float(result["internal_length"])
         for placement in placement_rows:
             placement["x"] = lorry_length - float(placement["x"]) - float(placement["placed_length"])
-    placement_rows.sort(
-        key=lambda p: (float(p["z"]), -float(p["x"]), float(p["y"]), int(p["order_id"]), int(p["box_instance"]))
-    )
+    placement_rows.sort(key=loading_sequence_key)
     # Derive the crew sequence from physical positions, so it never returns
     # to a deeper location after moving toward the rear gate.
     for sequence, placement in enumerate(placement_rows, start=1):

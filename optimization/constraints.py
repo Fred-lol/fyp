@@ -23,3 +23,28 @@ def fully_supported(candidate, placements, eps=1e-9):
             # Heavy-on-light prevention: supported box must not be lighter.
             return float(candidate["loaded_weight"]) <= float(base["loaded_weight"]) + eps
     return False
+
+
+def loading_sequence_key(p):
+    """Deepest face first; equal-depth supports precede their upper boxes."""
+    return (-(float(p["x"]) + float(p["placed_length"])), float(p["z"]),
+            float(p["y"]), -float(p["x"]), int(p.get("order_id", 0)),
+            int(p.get("box_instance", 0)))
+
+
+def stack_loads_valid(placements, eps=1e-7):
+    """Propagate all upper loads; unknown ratings use conservative loaded mass."""
+    from math import isfinite
+    loads = {id(p): 0.0 for p in placements}
+    for p in sorted(placements, key=lambda p: float(p["z"]), reverse=True):
+        limit = float(p.get("max_stack_load_kg", p["loaded_weight"]))
+        if not isfinite(limit) or limit < 0 or loads[id(p)] > limit + eps:
+            return False
+        if float(p["z"]) <= eps:
+            continue
+        bases = [b for b in placements if b is not p and fully_supported(p, [b])]
+        if not bases:
+            return False
+        base = bases[0]
+        loads[id(base)] += float(p["loaded_weight"]) + loads[id(p)]
+    return True

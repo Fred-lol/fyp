@@ -20,7 +20,7 @@ class OptimizerTests(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertIn("20 kg", result["message"])
         self.assertIn("10 kg", result["message"])
-        self.assertIn("over capacity", result["message"])
+        self.assertIn("Loading capacity exceeded", result["message"])
 
     def test_volume_failure_even_when_weight_is_safe(self):
         lorry = {"plate_number": "SPACE 1", "internal_length": 100.0, "internal_width": 100.0,

@@ -187,7 +187,17 @@ try {{
   controls.enableDamping=true; controls.dampingFactor=.08; controls.screenSpacePanning=true;
   const center=new THREE.Vector3(L/2,H/2,W/2);
   function normalUp(){{camera.up.set(0,1,0);}}
-  function set3D(){{normalUp();camera.position.set(L*1.25,H*1.25,W*2.2);controls.target.copy(center);controls.update();}}
+  function set3D(){{
+    normalUp();
+    const vertical=THREE.MathUtils.degToRad(camera.fov);
+    const horizontal=2*Math.atan(Math.tan(vertical/2)*camera.aspect);
+    const radius=Math.sqrt(L*L+W*W+H*H)/2;
+    const distance=radius/Math.sin(Math.min(vertical,horizontal)/2)*1.08;
+    const direction=new THREE.Vector3(.75,.75,1.7).normalize();
+    camera.far=Math.max(maxDim*20,distance+radius*3);camera.updateProjectionMatrix();
+    camera.position.copy(center).addScaledVector(direction,distance);
+    controls.target.copy(center);controls.update();
+  }}
   // Front = looking in through the rear loading gate. Side = the long
   // gate-to-deepest-end profile of the lorry.
   function frontView(){{normalUp();camera.position.set(-maxDim*2.2,H/2,W/2);controls.target.copy(center);controls.update();}}
