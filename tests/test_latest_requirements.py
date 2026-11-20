@@ -13,6 +13,7 @@ from services.order_service import (
     update_order_status,
     accept_box_recommendation,
     list_customer_orders,
+    eligible_orders_for_optimization,
 )
 from constants import ROLES
 from services.optimization_service import build_box_instances
@@ -31,6 +32,12 @@ class LatestRequirementTests(unittest.TestCase):
                 VALUES('Kangar Wholesale Collection Point','Kangar','Perlis','01000',6.4414,100.1986,'Available')
                 """
             )
+            self.delivery_point_id = conn.execute(
+                """
+                INSERT INTO collection_points(point_name,city,state,postcode,latitude,longitude,status)
+                VALUES('Johor Seafood Collection Point','Johor Bahru','Johor','80000',1.4927,103.7414,'Available')
+                """
+            ).lastrowid
         self.customer = create_user(
             "Perlis Customer", "perlis@example.com", "0123456789", "12345678",
             role=ROLES["CUSTOMER"], city="Kangar", state="Perlis", postcode="01000",
@@ -38,6 +45,10 @@ class LatestRequirementTests(unittest.TestCase):
         self.staff = create_user(
             "Staff", "admin.aquaload@example.com", "0123456790", "12345678",
             role=ROLES["WAREHOUSE_ADMIN"], city="Kangar", state="Perlis", postcode="01000",
+        )
+        self.delivery_customer = create_user(
+            "Johor Customer", "johor@example.com", "0123456791", "12345678",
+            role=ROLES["CUSTOMER"], city="Johor Bahru", state="Johor", postcode="80000",
         )
         add_product("Test Snapper", "Fish", "", "kg", 500, "Available", updated_by=self.staff)
 
@@ -47,6 +58,24 @@ class LatestRequirementTests(unittest.TestCase):
     def _order(self, kg):
         ok, _, order_id = place_order(self.customer, [(1, kg)])
         self.assertTrue(ok)
+        return order_id
+
+    def _delivery_order(self, kg):
+        ok, _, order_id = place_order(
+            self.delivery_customer, [(1, kg)], collection_point_id=self.delivery_point_id
+        )
+        self.assertTrue(ok)
+        with db.db_session() as conn:
+            conn.execute(
+                """
+                INSERT INTO payments(order_id,customer_id,amount,payment_method,payment_status,transaction_reference)
+                VALUES(?,?,?,?,?,?)
+                """,
+                (order_id, self.delivery_customer, kg * 10, "FPX", "Simulated", f"test-order-{order_id}"),
+            )
+        ok, message = update_order_status(order_id, "Confirmed", self.staff)
+        self.assertTrue(ok, message)
+        self.assertEqual(get_order(order_id)["status"], "Confirmed")
         return order_id
 
     def test_perlis_order_is_local_pickup(self):
@@ -74,37 +103,39 @@ class LatestRequirementTests(unittest.TestCase):
         self.assertIn([(50, 2)], alternatives)
 
     def test_status_does_not_skip_operational_stage(self):
-        order_id = self._order(50)
+        order_id = self._delivery_order(50)
         ok, _ = update_order_status(order_id, "Loaded", self.staff)
         self.assertFalse(ok)
-        ok, _ = update_order_status(order_id, "Confirmed", self.staff)
-        self.assertTrue(ok)
-        ok, _ = accept_box_recommendation(order_id, 0)
-        self.assertTrue(ok)
-        ok, _ = update_order_status(order_id, "Ready for Loading", self.staff)
+        ok, message = update_order_status(order_id, "Ready for Loading", self.staff)
         self.assertFalse(ok)
+        self.assertIn("Save sufficient box requirements first", message)
+        self.assertEqual(get_order(order_id)["status"], "Confirmed")
+        ok, message = accept_box_recommendation(order_id, 0, self.staff)
+        self.assertTrue(ok)
+        self.assertEqual(message, "Box requirements saved successfully. Order is now Ready for Loading.")
+        order = get_order(order_id)
+        self.assertEqual(order["status"], "Ready for Loading")
+        self.assertEqual(sum(h["status"] == "Ready for Loading" for h in order["history"]), 1)
+        eligible = eligible_orders_for_optimization(self.delivery_point_id)
+        self.assertIn(order_id, {entry["order_id"] for entry in eligible})
 
 
     def test_box_labels_are_unique_per_order_and_include_customer(self):
-        order_id = self._order(150)
-        ok, _ = accept_box_recommendation(order_id, 0)
+        order_id = self._delivery_order(150)
+        ok, _ = accept_box_recommendation(order_id, 0, self.staff)
         self.assertTrue(ok)
         boxes = build_box_instances([order_id])
         labels = [b["box_label"] for b in boxes]
         self.assertEqual(len(labels), len(set(labels)))
         self.assertEqual(labels, [f"O{order_id}-B{i:02d}" for i in range(1, len(labels) + 1)])
-        self.assertTrue(all(b["customer_name"] == "Perlis Customer" for b in boxes))
+        self.assertTrue(all(b["customer_name"] == "Johor Customer" for b in boxes))
 
     def test_my_orders_filters_accept_second_argument_and_filter_correctly(self):
         active_id = self._order(10)
-        completed_id = self._order(20)
+        completed_id = self._delivery_order(20)
         cancelled_id = self._order(30)
 
-        ok, _ = update_order_status(completed_id, "Confirmed", self.staff)
-        self.assertTrue(ok)
-        ok, _ = accept_box_recommendation(completed_id, 0)
-        self.assertTrue(ok)
-        ok, _ = update_order_status(completed_id, "Ready for Loading", self.staff)
+        ok, _ = accept_box_recommendation(completed_id, 0, self.staff)
         self.assertTrue(ok)
         ok, _ = update_order_status(completed_id, "Loaded", self.staff)
         self.assertTrue(ok)

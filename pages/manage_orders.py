@@ -39,18 +39,20 @@ def _show_page_feedback(order_id):
 
 
 def _accept_recommendation(order_id):
-    """Save the recommended boxes for a paid pending order."""
+    """Save a validated recommendation and advance a confirmed delivery order."""
     current = get_order(order_id)
     if not current:
         return False, "This order is no longer available. Refresh the page and try again."
-    if current["status"] != "Ready for Loading":
-        return False, f"Only Ready for Loading orders can accept a box recommendation. This order is {current['status']}."
+    if current["status"] not in {"Confirmed", "Ready for Loading"}:
+        return False, f"Confirm the order before saving its box requirement. This order is {current['status']}."
     if (current.get("payment") or {}).get("payment_status") not in {"Paid", "Simulated"}:
         return False, "A successful payment is required before saving the box requirement."
     if not current.get("collection_point_id"):
         return False, "The customer must choose a collection point during payment before box requirements can be saved."
+    if current.get("collection_assignment") == "Local Pickup":
+        return False, "Local pickup orders do not need boxes or lorry loading."
 
-    return accept_box_recommendation(order_id, 0)
+    return accept_box_recommendation(order_id, 0, st.session_state.user_id)
 
 
 page_header(
@@ -228,7 +230,9 @@ with right:
                 key=f"save_manual_box_requirement_{order['order_id']}",
             )
             if save_manual:
-                ok, msg = set_manual_box_requirements(order["order_id"], selections)
+                ok, msg = set_manual_box_requirements(
+                    order["order_id"], selections, st.session_state.user_id
+                )
                 if ok:
                     st.session_state.manage_orders_feedback = (order["order_id"], "success", msg)
                     st.rerun()

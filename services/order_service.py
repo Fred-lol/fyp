@@ -18,7 +18,7 @@ from services.collection_point_service import (
     is_lorry_delivery_supported,
     is_local_kuala_perlis_pickup,
 )
-from services.box_service import list_box_inventory, get_box, available_quantity
+from services.box_service import list_box_inventory
 
 
 def list_products(search="", category="All", availability="Available"):
@@ -528,6 +528,72 @@ def allowed_next_statuses(current_status):
     return ORDER_STATUS_TRANSITIONS.get(current_status, [])
 
 
+def _validate_saved_box_requirements(conn, order_id, order=None):
+    """Validate persisted box assignments before an order can enter loading."""
+    order = order or conn.execute(
+        "SELECT * FROM seafood_orders WHERE order_id=? FOR UPDATE", (order_id,)
+    ).fetchone()
+    if not order:
+        return "Order not found."
+    if order.get("archived_at"):
+        return "Archived orders are read-only."
+    if order.get("collection_assignment") == "Local Pickup":
+        return "Local pickup orders do not enter lorry loading."
+    if not order.get("collection_point_id"):
+        return "The order needs a collection point before loading can be prepared."
+    payment = conn.execute(
+        "SELECT payment_status FROM payments WHERE order_id=?", (order_id,)
+    ).fetchone()
+    if not payment or payment["payment_status"] not in {"Paid", "Simulated"}:
+        return "A successful payment is required before loading can be prepared."
+    total_weight = float(conn.execute(
+        "SELECT COALESCE(SUM(CASE WHEN unit='kg' THEN quantity ELSE 0 END),0) total_weight "
+        "FROM order_items WHERE order_id=?", (order_id,)
+    ).fetchone()["total_weight"] or 0)
+    if not isfinite(total_weight) or total_weight <= 0:
+        return "The order must have a valid seafood weight greater than 0 kg."
+
+    requirements = conn.execute(
+        """
+        SELECT r.box_profile_id,r.quantity,b.box_name,b.capacity_litre,
+               b.max_seafood_weight_kg,b.inventory_quantity,b.status
+        FROM order_box_requirements r
+        JOIN box_profiles b ON b.box_profile_id=r.box_profile_id
+        WHERE r.order_id=?
+        ORDER BY b.box_profile_id
+        """, (order_id,)
+    ).fetchall()
+    if not requirements:
+        return "Save sufficient box requirements first. The order will become Ready for Loading after they are saved."
+
+    capacity = 0.0
+    shortages = []
+    for req in requirements:
+        quantity = int(req["quantity"] or 0)
+        per_box = float(req["max_seafood_weight_kg"] or 0)
+        if quantity <= 0 or per_box <= 0 or req["status"] != "Active":
+            return f"{req['box_name']} is inactive or has invalid quantity/capacity. Update the box requirement."
+        capacity += quantity * per_box
+        reserved = conn.execute(
+            """
+            SELECT COALESCE(SUM(r.quantity),0) reserved
+            FROM order_box_requirements r
+            JOIN seafood_orders o ON o.order_id=r.order_id
+            WHERE r.box_profile_id=? AND o.status NOT IN ('Completed','Cancelled') AND o.order_id<>?
+            """, (req["box_profile_id"], order_id)
+        ).fetchone()["reserved"]
+        available = max(0, int(req["inventory_quantity"] or 0) - int(reserved or 0))
+        if quantity > available:
+            shortages.append(
+                f"{req['box_name']} ({int(req['capacity_litre'])}L): need {quantity}, only {available} available"
+            )
+    if capacity + 1e-9 < total_weight:
+        return f"Insufficient box capacity. {total_weight - capacity:g} kg of seafood still requires box capacity."
+    if shortages:
+        return "Insufficient box inventory: " + "; ".join(shortages) + "."
+    return None
+
+
 def update_order_status(order_id, new_status, updated_by, note=""):
     """Advance an order through verified operational stages."""
     with db_session() as conn:
@@ -552,23 +618,25 @@ def update_order_status(order_id, new_status, updated_by, note=""):
                 "INSERT INTO order_status_history(order_id,status,updated_by,note) VALUES(?,?,?,?)",
                 (order_id, "Confirmed", updated_by, confirmation_note),
             )
-            next_status = "Ready for Pickup" if order["collection_assignment"] == "Local Pickup" else "Ready for Loading"
-            next_note = (
-                f"Ready for pickup at {order['collection_point'] or 'the selected Perlis collection point'}. No lorry delivery is required."
-                if next_status == "Ready for Pickup"
-                else "Automatically prepared for loading after Staff confirmation."
-            )
-            conn.execute(
-                "UPDATE seafood_orders SET status=?,updated_at=CURRENT_TIMESTAMP WHERE order_id=?",
-                (next_status, order_id),
-            )
-            conn.execute(
-                "INSERT INTO order_status_history(order_id,status,updated_by,note) VALUES(?,?,?,?)",
-                (order_id, next_status, updated_by, next_note),
-            )
-            if next_status == "Ready for Pickup":
+            if order["collection_assignment"] == "Local Pickup":
+                pickup_note = (
+                    f"Ready for pickup at {order['collection_point'] or 'the selected Perlis collection point'}. "
+                    "No lorry delivery is required."
+                )
+                conn.execute(
+                    "UPDATE seafood_orders SET status='Ready for Pickup',updated_at=CURRENT_TIMESTAMP WHERE order_id=?",
+                    (order_id,),
+                )
+                conn.execute(
+                    "INSERT INTO order_status_history(order_id,status,updated_by,note) VALUES(?,?,?,?)",
+                    (order_id, "Ready for Pickup", updated_by, pickup_note),
+                )
                 return True, "Order confirmed and marked Ready for Pickup at LKIM Fisheries Complex Kuala Perlis. No lorry is required."
-            return True, "Order confirmed and automatically marked Ready for Loading."
+            return True, "Order confirmed. Save sufficient box requirements to mark it Ready for Loading."
+        if new_status == "Ready for Loading":
+            validation = _validate_saved_box_requirements(conn, order_id, order)
+            if validation:
+                return False, validation
         if new_status == "Cancelled":
             cancellation_notice = cancellation_customer_message(by_staff=True)
             _restore_order_stock(conn, order_id, updated_by, "Staff Cancellation")
@@ -774,18 +842,8 @@ def box_requirement_capacity(order_weight_kg, selected_boxes):
     return capacity, max(0.0, order_weight - capacity), max(0.0, capacity - order_weight)
 
 
-def save_box_combination(order_id, selected_boxes):
-    order = get_order(order_id)
-    if not order:
-        return False, "Order not found."
-    if order.get("archived_at"):
-        return False, "Archived orders are read-only."
-    try:
-        total_weight = float(order["total_weight_kg"] or 0)
-    except (TypeError, ValueError):
-        return False, "The order weight is invalid. Refresh the order and try again."
-    if not isfinite(total_weight) or total_weight <= 0:
-        return False, "The order must have a valid seafood weight greater than 0 kg."
+def save_box_combination(order_id, selected_boxes, updated_by=None):
+    """Validate, reserve and save boxes while advancing Confirmed orders atomically."""
     if not selected_boxes:
         return False, "Select at least one box before saving the requirement."
 
@@ -803,78 +861,137 @@ def save_box_combination(order_id, selected_boxes):
             return False, "Each box size can be selected only once. Combine duplicate quantities and try again."
         requested[profile_id] = quantity
 
-    canonical_boxes, shortages = [], []
     try:
-        # Re-read live capacity and inventory immediately before persisting.
-        for profile_id, quantity in requested.items():
-            current_box = get_box(profile_id)
-            if not current_box or current_box.get("status") != "Active":
-                return False, "A selected box template is no longer available. Refresh and try again."
-            capacity = float(current_box.get("max_seafood_weight_kg") or 0)
-            if not isfinite(capacity) or capacity <= 0:
-                return False, f"{current_box['box_name']} has no valid seafood weight capacity configured."
-            available = available_quantity(profile_id, exclude_order_id=order_id)
-            if quantity > available:
-                shortages.append(
-                    f"{current_box['box_name']} ({int(current_box['capacity_litre'])}L): "
-                    f"need {quantity}, only {available} available"
-                )
-            canonical_boxes.append({
-                "box_profile_id": profile_id,
-                "box_name": current_box["box_name"],
-                "capacity_litre": current_box["capacity_litre"],
-                "quantity": quantity,
-                "capacity_per_box_kg": capacity,
-                "dimensions": f"{current_box['length']:g} × {current_box['width']:g} × {current_box['height']:g} cm",
-            })
-
-        total_capacity, remaining, _unused = box_requirement_capacity(total_weight, canonical_boxes)
-        if remaining > 1e-9:
-            return False, (
-                f"Insufficient box capacity. {remaining:g} kg of seafood still requires box capacity "
-                f"({total_capacity:g} kg selected for a {total_weight:g} kg order)."
-            )
-        if shortages:
-            return False, "Insufficient box inventory: " + "; ".join(shortages) + "."
-
-        allocations = _allocate_loaded_weights(total_weight, canonical_boxes)
         with db_session() as conn:
+            # Lock the order first. A concurrent cancellation, confirmation or
+            # box save must serialize with this transaction.
+            order = conn.execute(
+                "SELECT * FROM seafood_orders WHERE order_id=? FOR UPDATE", (order_id,)
+            ).fetchone()
+            if not order:
+                return False, "Order not found."
+            if order.get("archived_at"):
+                return False, "Archived orders are read-only."
+            if order["status"] not in {"Confirmed", "Ready for Loading"}:
+                return False, (
+                    "Only confirmed orders can save lorry box requirements. "
+                    f"This order is {order['status']}."
+                )
+            if order.get("collection_assignment") == "Local Pickup":
+                return False, "Local pickup orders do not need boxes or lorry loading."
+            if not order.get("collection_point_id"):
+                return False, "The customer must choose a collection point before box requirements can be saved."
+            payment = conn.execute(
+                "SELECT payment_status FROM payments WHERE order_id=?", (order_id,)
+            ).fetchone()
+            if not payment or payment["payment_status"] not in {"Paid", "Simulated"}:
+                return False, "A successful payment is required before saving box requirements."
+            total_weight = float(conn.execute(
+                "SELECT COALESCE(SUM(CASE WHEN unit='kg' THEN quantity ELSE 0 END),0) total_weight "
+                "FROM order_items WHERE order_id=?", (order_id,)
+            ).fetchone()["total_weight"] or 0)
+            if not isfinite(total_weight) or total_weight <= 0:
+                return False, "The order must have a valid seafood weight greater than 0 kg."
+
+            canonical_boxes, shortages = [], []
+            # Lock each selected template in stable order to prevent concurrent
+            # assignments from over-reserving the same physical inventory.
+            for profile_id, quantity in sorted(requested.items()):
+                current_box = conn.execute(
+                    "SELECT * FROM box_profiles WHERE box_profile_id=? FOR UPDATE", (profile_id,)
+                ).fetchone()
+                if not current_box or current_box["status"] != "Active":
+                    return False, "A selected box template is no longer available. Refresh and try again."
+                capacity = float(current_box.get("max_seafood_weight_kg") or 0)
+                if not isfinite(capacity) or capacity <= 0:
+                    return False, f"{current_box['box_name']} has no valid seafood weight capacity configured."
+                reserved = conn.execute(
+                    """
+                    SELECT COALESCE(SUM(r.quantity),0) reserved
+                    FROM order_box_requirements r
+                    JOIN seafood_orders o ON o.order_id=r.order_id
+                    WHERE r.box_profile_id=? AND o.status NOT IN ('Completed','Cancelled')
+                      AND o.order_id<>?
+                    """, (profile_id, order_id)
+                ).fetchone()["reserved"]
+                available = max(0, int(current_box.get("inventory_quantity") or 0) - int(reserved or 0))
+                if quantity > available:
+                    shortages.append(
+                        f"{current_box['box_name']} ({int(current_box['capacity_litre'])}L): "
+                        f"need {quantity}, only {available} available"
+                    )
+                canonical_boxes.append({
+                    "box_profile_id": profile_id,
+                    "box_name": current_box["box_name"],
+                    "capacity_litre": current_box["capacity_litre"],
+                    "quantity": quantity,
+                    "capacity_per_box_kg": capacity,
+                    "dimensions": f"{current_box['length']:g} × {current_box['width']:g} × {current_box['height']:g} cm",
+                })
+
+            total_capacity, remaining, _unused = box_requirement_capacity(total_weight, canonical_boxes)
+            if remaining > 1e-9:
+                return False, (
+                    f"Insufficient box capacity. {remaining:g} kg of seafood still requires box capacity "
+                    f"({total_capacity:g} kg selected for a {total_weight:g} kg order)."
+                )
+            if shortages:
+                return False, "Insufficient box inventory: " + "; ".join(shortages) + "."
+
+            if order["status"] == "Confirmed":
+                changed = conn.execute(
+                    """
+                    UPDATE seafood_orders
+                    SET status='Ready for Loading',updated_at=CURRENT_TIMESTAMP
+                    WHERE order_id=? AND status='Confirmed' AND archived_at IS NULL
+                    """, (order_id,)
+                )
+                if changed.rowcount != 1:
+                    return False, "The order status changed while saving. Refresh and try again."
+                prior_ready_history = conn.execute(
+                    "SELECT history_id FROM order_status_history WHERE order_id=? AND status='Ready for Loading' LIMIT 1",
+                    (order_id,),
+                ).fetchone()
+                if not prior_ready_history:
+                    conn.execute(
+                        "INSERT INTO order_status_history(order_id,status,updated_by,note) VALUES(?,?,?,?)",
+                        (order_id, "Ready for Loading", updated_by,
+                         "Box requirements validated and saved; order is ready for loading."),
+                    )
+
+            allocations = _allocate_loaded_weights(total_weight, canonical_boxes)
             conn.execute("DELETE FROM order_box_requirements WHERE order_id=?", (order_id,))
             for box, weights in allocations:
-                qty = int(box["quantity"])
+                quantity = int(box["quantity"])
                 positive = [weight for weight in weights if weight > 0]
                 # The optimizer expands this template row into individual boxes.
-                avg_load = sum(positive) / qty if qty else 0
-                if avg_load <= 0:
+                average_load = sum(positive) / quantity if quantity else 0
+                if average_load <= 0:
                     continue
                 conn.execute(
                     """
                     INSERT INTO order_box_requirements(order_id,box_profile_id,quantity,loaded_weight_per_box)
                     VALUES(?,?,?,?)
                     """,
-                    (order_id, int(box["box_profile_id"]), qty, avg_load),
+                    (order_id, int(box["box_profile_id"]), quantity, average_load),
                 )
     except Exception:
-        # The db_session context rolls back failed writes and failed commits.
-        return False, "The box requirement could not be saved. Please retry; no changes were confirmed."
-    return True, "Box requirement saved successfully."
+        # db_session rolls back the box replacement, status and history together.
+        return False, "Box requirements could not be saved. The order status was not advanced. Please retry."
+    return True, "Box requirements saved successfully. Order is now Ready for Loading."
 
 
-def accept_box_recommendation(order_id, recommendation_index=0):
+def accept_box_recommendation(order_id, recommendation_index=0, updated_by=None):
     recs = recommend_box_combinations(order_id, limit=max(3, recommendation_index + 1))
     if not recs:
         return False, box_requirement_shortage_message(order_id)
     if recommendation_index < 0 or recommendation_index >= len(recs):
         return False, "That recommendation is no longer available. Refresh and try again."
-    ok, message = save_box_combination(order_id, recs[recommendation_index]["boxes"])
-    return ok, "Box recommendation accepted and saved successfully." if ok else message
+    return save_box_combination(order_id, recs[recommendation_index]["boxes"], updated_by)
 
 
-def set_manual_box_requirements(order_id, selections):
+def set_manual_box_requirements(order_id, selections, updated_by=None):
     """selections: [(box_profile_id, quantity)]"""
-    order = get_order(order_id)
-    if not order:
-        return False, "Order not found."
     selected_boxes = []
     for box_profile_id, qty in selections:
         try:
@@ -886,21 +1003,13 @@ def set_manual_box_requirements(order_id, selections):
             return False, "Choose a valid box size and enter a whole quantity of 0 or more."
         if quantity == 0:
             continue
-        box = get_box(profile_id)
-        if not box or box["status"] != "Active":
-            return False, "A selected box template is unavailable. Refresh inventory and try again."
         selected_boxes.append({
-            "box_profile_id": box["box_profile_id"],
-            "box_name": box["box_name"],
-            "capacity_litre": box["capacity_litre"],
+            "box_profile_id": profile_id,
             "quantity": quantity,
-            "capacity_per_box_kg": float(box["max_seafood_weight_kg"]),
-            "dimensions": f"{box['length']:g} × {box['width']:g} × {box['height']:g} cm",
         })
     if not selected_boxes:
         return False, "Select at least one box before saving the requirement."
-    ok, message = save_box_combination(order_id, selected_boxes)
-    return ok, "Manual box requirements saved successfully." if ok else message
+    return save_box_combination(order_id, selected_boxes, updated_by)
 
 
 def eligible_orders_for_optimization(collection_point_id=None):
