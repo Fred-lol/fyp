@@ -360,54 +360,7 @@ div[class*="stElementToolbar"] button:hover{
 .stDownloadButton > button:disabled *,[data-testid="stFormSubmitButton"] > button:disabled *,
 [data-testid="stDownloadButton"] > button:disabled *{color:var(--aq-muted)!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
 
-/* Streamlit's canvas grid reads Glide Data Grid theme variables, not ordinary
-   descendant text CSS. AquaLoad keeps the existing white grid canvas in every
-   portal appearance, so set text ink only and leave every surface unchanged. */
-[data-testid="stDataFrame"] [class*="gdg-"],
-[data-testid="stDataEditor"] [class*="gdg-"]{
-  --gdg-text-dark:#173b58!important;
-  --gdg-text-medium:#173b58!important;
-  --gdg-text-light:#425e73!important;
-  --gdg-text-bubble:#173b58!important;
-  --gdg-text-header:#173b58!important;
-  --gdg-text-group-header:#173b58!important;
-  --gdg-text-header-selected:#173b58!important;
-}
-/* The dataframe popovers are React portals. These are their actual Streamlit
-   test IDs; keep the existing menu surface and make labels/icons follow the
-   active appearance tokens. */
-[data-testid="stDataFrameColumnMenu"],
-[data-testid="stDataFrameColumnFormattingMenu"],
-[data-testid="stDataFrameColumnVisibilityMenu"],
-[data-testid="stDataFrameButtonActionMenu"],
-[data-testid="stDataFrameStatisticsMenu"]{
-  color:#173b58!important;
-}
-[data-testid="stDataFrameColumnMenu"] [role="menuitem"],
-[data-testid="stDataFrameColumnFormattingMenu"] [role="menuitem"],
-[data-testid="stDataFrameColumnVisibilityMenu"] [role="menuitem"],
-[data-testid="stDataFrameButtonActionMenu"] [role="menuitem"],
-[data-testid="stDataFrameStatisticsMenu"] *{
-  color:#173b58!important;
-  fill:currentColor!important;
-  stroke:currentColor!important;
-}
-/* When Streamlit mounts a grid menu inside its themed popover, follow that
-   existing surface's foreground token instead of forcing light-canvas ink. */
-[data-baseweb="popover"] [data-testid="stDataFrameColumnMenu"],
-[data-baseweb="popover"] [data-testid="stDataFrameColumnFormattingMenu"],
-[data-baseweb="popover"] [data-testid="stDataFrameColumnVisibilityMenu"],
-[data-baseweb="popover"] [data-testid="stDataFrameButtonActionMenu"],
-[data-baseweb="popover"] [data-testid="stDataFrameStatisticsMenu"],
-[data-baseweb="popover"] [data-testid="stDataFrameColumnMenu"] *,
-[data-baseweb="popover"] [data-testid="stDataFrameColumnFormattingMenu"] *,
-[data-baseweb="popover"] [data-testid="stDataFrameColumnVisibilityMenu"] *,
-[data-baseweb="popover"] [data-testid="stDataFrameButtonActionMenu"] *,
-[data-baseweb="popover"] [data-testid="stDataFrameStatisticsMenu"] *{
-  color:var(--aq-text)!important;
-  fill:currentColor!important;
-  stroke:currentColor!important;
-}
+/* Preserve the native light-canvas ink colour of grid search fields. */
 [data-testid="stDataFrame"] input,[data-testid="stDataEditor"] input{
   color:#173b58!important;
   -webkit-text-fill-color:#173b58!important;
@@ -447,19 +400,54 @@ DARK_SEGMENTED_CONTROL_CSS = """
 [data-testid="stSegmentedControl"] button[aria-pressed="true"] *,[data-testid="stSegmentedControl"] button[aria-pressed="true"] p,[data-testid="stSegmentedControl"] button[aria-pressed="true"] span,[data-testid="stSegmentedControl"] button[aria-pressed="true"] svg{color:#042433!important;fill:currentColor!important;stroke:currentColor!important}
 """
 
+DARK_TABLE_TEXT_CSS = r"""
+/* The native Streamlit grid draws cell/header text from Glide Data Grid theme
+   variables, rather than ordinary descendant color rules. Dark Mode keeps the
+   existing white table surfaces and changes only their text/icon ink. */
+[data-testid="stDataFrame"] [class*="gdg-"],
+[data-testid="stDataEditor"] [class*="gdg-"]{
+  --gdg-text-dark:#173b58!important;
+  --gdg-text-medium:#173b58!important;
+  --gdg-text-light:#425e73!important;
+  --gdg-text-bubble:#173b58!important;
+  --gdg-text-header:#173b58!important;
+  --gdg-text-group-header:#173b58!important;
+  --gdg-text-header-selected:#173b58!important;
+}
+/* Use Streamlit's actual portal test IDs for sort, filter, format and
+   visibility menus. Their surfaces stay unchanged; all labels/icons are navy. */
+[data-testid="stDataFrameColumnMenu"],
+[data-testid="stDataFrameColumnFormattingMenu"],
+[data-testid="stDataFrameColumnVisibilityMenu"],
+[data-testid="stDataFrameButtonActionMenu"],
+[data-testid="stDataFrameStatisticsMenu"],
+[data-testid="stDataFrameColumnMenu"] *,
+[data-testid="stDataFrameColumnFormattingMenu"] *,
+[data-testid="stDataFrameColumnVisibilityMenu"] *,
+[data-testid="stDataFrameButtonActionMenu"] *,
+[data-testid="stDataFrameStatisticsMenu"] *{
+  color:#173b58!important;
+  fill:currentColor!important;
+  stroke:currentColor!important;
+}
+"""
+
 
 def _theme_css(preference: str) -> str:
     preference = (preference or "System").title()
     if preference == "Dark":
         root = f":root{{{DARK_VARS}}}"
         control_css = DARK_SEGMENTED_CONTROL_CSS
+        table_css = DARK_TABLE_TEXT_CSS
     elif preference == "Light":
         root = f":root{{{LIGHT_VARS}}}"
         control_css = ""
+        table_css = ""
     else:
         root = f":root{{{LIGHT_VARS}}}@media (prefers-color-scheme: dark){{:root{{{DARK_VARS}}}}}"
         control_css = f"@media (prefers-color-scheme: dark){{{DARK_SEGMENTED_CONTROL_CSS}}}"
-    return f"<style>{root}{BASE_CSS}{control_css}{UI_FOUNDATION_CSS}{PORTAL_CSS}{notification_css(preference)}</style>"
+        table_css = f"@media (prefers-color-scheme: dark){{{DARK_TABLE_TEXT_CSS}}}"
+    return f"<style>{root}{BASE_CSS}{control_css}{UI_FOUNDATION_CSS}{PORTAL_CSS}{notification_css(preference)}{table_css}</style>"
 
 
 def apply_theme(preference=None):
