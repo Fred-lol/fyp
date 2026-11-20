@@ -18,8 +18,12 @@ COMMERCE_CSS = """
 .st-key-catalogue_grid [class*="st-key-favorite_"]{position:absolute!important;top:17px;right:17px;z-index:4;width:36px;height:36px;margin:0!important}
 .st-key-catalogue_grid [class*="st-key-favorite_"] button{width:36px!important;height:36px!important;min-height:36px!important;padding:0!important;border-radius:50%!important;background:#fff!important;border:1px solid rgba(8,46,75,.16)!important;color:#b42345!important;box-shadow:0 2px 8px rgba(8,46,75,.2)!important;position:relative!important;z-index:5!important}
 .st-key-catalogue_grid [class*="st-key-favorite_"] button *{color:#b42345!important;fill:currentColor!important;stroke:currentColor!important}
-.st-key-catalogue_favorites_filter button{width:44px!important;height:44px!important;min-height:44px!important;padding:0!important;border:1px solid var(--aq-border)!important;border-radius:11px!important;background:var(--aq-card)!important;box-shadow:none!important}
-.st-key-catalogue_favorites_filter button p{font-family:Arial,sans-serif!important;font-size:27px!important;line-height:1!important;margin:0!important}
+.st-key-catalogue_favorites_filter button{width:100%!important;min-height:40px!important;padding:0 12px!important;border:1px solid var(--aq-border)!important;border-radius:999px!important;background:var(--aq-card)!important;box-shadow:none!important;color:var(--aq-text)!important;white-space:nowrap!important;font-size:13px!important;font-weight:650!important}
+.st-key-catalogue_favorites_filter button p{font-size:13px!important;line-height:1.15!important;margin:0!important;white-space:nowrap!important}
+.st-key-catalogue_favorites_filter button [data-testid="stIconMaterial"]{font-size:19px!important;line-height:1!important}
+.st-key-catalogue_favorites_active .st-key-catalogue_favorites_filter button{background:color-mix(in srgb,#e11d48 9%,var(--aq-card))!important;border-color:color-mix(in srgb,#e11d48 45%,var(--aq-border))!important}
+.st-key-catalogue_favorites_active .st-key-catalogue_favorites_filter button [data-testid="stIconMaterial"]{color:#e11d48!important;-webkit-text-fill-color:#e11d48!important}
+.st-key-catalogue_grid [class*="st-key-favorite_"] button [data-testid="stIconMaterial"]{font-size:20px!important;color:#e11d48!important}
 .aq-product-name{min-height:2.7em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--aq-text);font-size:16px;font-weight:750;line-height:1.35}
 .aq-product-pricing{display:flex;align-items:baseline;gap:5px;color:var(--aq-text)}.aq-product-pricing strong{font-size:19px;font-weight:800}.aq-product-pricing small{font-size:12px;color:var(--aq-muted);font-weight:500}
 .aq-product-stock{margin-top:auto;display:flex;align-items:center;gap:7px;color:var(--aq-muted);font-size:12px;line-height:1.4}.aq-product-stock:before{content:"";width:8px;height:8px;flex:none;border-radius:50%;background:#0b9b78}.aq-product-stock.aq-low:before{background:#dc9b28}
@@ -48,6 +52,7 @@ def product_card(product, project_dir, on_open, *, is_favorite=False, on_favorit
             icon,
             key=f"favorite_{product_id}",
             type="tertiary",
+            help="Remove from favorites" if is_favorite else "Add to favorites",
             on_click=on_favorite,
             args=(product_id,),
         )
@@ -90,6 +95,7 @@ def product_details(product, project_dir, on_add, *, is_favorite=False, on_favor
             icon=":material/favorite:" if is_favorite else ":material/favorite_border:",
             key="detail_favorite",
             type="tertiary",
+            help="Remove from favorites" if is_favorite else "Add to favorites",
             on_click=on_favorite,
             args=(product_id,),
         )

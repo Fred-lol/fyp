@@ -117,26 +117,23 @@ def ordering_workspace() -> None:
     # Fragment interactions repeat only this section. Recheck authorization
     # here too, so an expired/cleared session never exposes the detail panel.
     require_role(ROLES["CUSTOMER"])
-    filters, category_filter, favorites_filter, cart_action = st.columns([2.1, 1, .5, .58], vertical_alignment="bottom")
+    filters, category_filter, favorites_filter, cart_action = st.columns([2.1, 1, .92, .68], vertical_alignment="bottom")
     with filters:
         search = st.text_input("Search seafood", placeholder="Search by seafood name", key="catalogue_search")
     with category_filter:
         category = st.selectbox("Category", ["All"] + product_categories(), key="catalogue_category")
     with favorites_filter:
         favorites_only = st.session_state.get("catalogue_favorites_only", False)
-        st.button(
-            "♥" if favorites_only else "♡",
-            key="catalogue_favorites_filter",
-            help="Show all seafood" if favorites_only else "Show favorites only",
-            type="tertiary",
-            on_click=_toggle_favorites_filter,
-            use_container_width=True,
-        )
-        heart_ink = "#e11d48" if favorites_only else "var(--aq-muted)"
-        st.markdown(
-            f"<style>.st-key-catalogue_favorites_filter button p{{color:{heart_ink}!important;-webkit-text-fill-color:{heart_ink}!important}}</style>",
-            unsafe_allow_html=True,
-        )
+        with st.container(key="catalogue_favorites_active" if favorites_only else "catalogue_favorites_inactive"):
+            st.button(
+                "Favorites Only" if favorites_only else "Favorites",
+                key="catalogue_favorites_filter",
+                icon=":material/favorite:" if favorites_only else ":material/favorite_border:",
+                help="Show all seafood" if favorites_only else "Show only your saved favorites",
+                type="tertiary",
+                on_click=_toggle_favorites_filter,
+                use_container_width=True,
+            )
     with cart_action:
         cart_summary = checkout_summary(list(st.session_state.cart.items()))
         with st.popover(f"Cart ({len(cart_summary['items'])})", icon=":material/shopping_cart:", help="Review cart", use_container_width=True):

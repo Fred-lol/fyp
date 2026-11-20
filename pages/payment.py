@@ -22,11 +22,7 @@ bootstrap_app()
 st.set_page_config(page_title="Checkout | AquaLoad", page_icon="AquaLoad.png", layout="wide")
 apply_theme()
 customer_sidebar()
-page_header("Review & place your order", "Choose your collection point and payment method.", "Customer checkout", back_target="pages/order_seafood.py")
-st.markdown(
-    '<div class="aq-payment-disclosure">Payments are simulated. No actual money is transferred. Use test details only.</div>',
-    unsafe_allow_html=True,
-)
+page_header("Review & place your order", "Choose your collection point and complete checkout. No money will be charged.", "Customer checkout", back_target="pages/order_seafood.py")
 st.html("""<style>
 .st-key-checkout_summary,.st-key-checkout_payment{padding:24px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important}
 .st-key-checkout_payment [data-testid="stForm"]{border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important}
@@ -39,7 +35,6 @@ st.html("""<style>
 .aq-checkout-total{display:flex;justify-content:space-between;align-items:baseline;padding:20px 0;color:var(--aq-text)}.aq-checkout-total strong{font-size:24px}
 .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button:focus-visible{outline:3px solid var(--aq-cyan)!important;outline-offset:2px!important}
 .aq-numeric-error{color:var(--aq-status-danger-text)!important;font-size:.82rem!important;margin-top:.2rem!important}
-.aq-payment-disclosure{display:inline-block;max-width:100%;margin:0 0 14px;padding:8px 11px;border:1px solid var(--aq-status-info-bg);border-radius:8px;background:var(--aq-status-info-bg);color:var(--aq-status-info-text);font-size:.82rem;line-height:1.45}
 @media(max-width:600px){.st-key-checkout_summary,.st-key-checkout_payment{padding:16px!important}.aq-checkout-total strong{font-size:21px!important}}
 @media(max-width:420px){.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button{height:94px!important;padding:8px 4px!important}.st-key-checkout_payment .st-key-payment_method_choices [class*="st-key-payment_method_select_"] button p{font-size:.74rem!important}}
 </style>""")
@@ -143,25 +138,27 @@ def render_payment(cart, point_id, total):
     with st.form('demo_payment_form', border=False):
         details = {}
         if method == 'Credit / Debit Card':
-            details['cardholder'] = st.text_input('Cardholder name', placeholder='Name on card', key='payment_cardholder', autocomplete='off', max_chars=80)
+            st.caption('Test cards only. Never enter a real card number or security code. No payment is processed.')
+            details['cardholder'] = st.text_input('Cardholder name (test)', placeholder='Test Customer', key='payment_cardholder', autocomplete='off', max_chars=80)
             field_error(errors, 'cardholder')
-            details['card_number'] = st.text_input('Card number', placeholder='4242 4242 4242 4242', key='payment_card_number', autocomplete='off', max_chars=19)
+            details['card_number'] = st.text_input('Test card number', placeholder='4242 4242 4242 4242', key='payment_card_number', autocomplete='off', max_chars=19)
             field_error(errors, 'card_number')
+            st.caption('Use a 16-digit number. Do not enter a real card number.')
             exp_col, cvv_col = st.columns(2)
             with exp_col:
-                details['expiry'] = st.text_input('Expiry', placeholder='MM/YY', key='payment_expiry', autocomplete='off')
+                details['expiry'] = st.text_input('Expiry (MM/YY)', placeholder='MM/YY', key='payment_expiry', autocomplete='off')
                 field_error(errors, 'expiry')
             with cvv_col:
-                details['cvv'] = st.text_input('CVV', placeholder='123', max_chars=3, type='password', key='payment_cvv', autocomplete='off')
+                details['cvv'] = st.text_input('Test CVV', placeholder='123', max_chars=3, type='password', key='payment_cvv', autocomplete='off')
                 field_error(errors, 'cvv')
         elif method == 'Online Banking (FPX)':
             details['bank'] = st.selectbox('Malaysian bank', MALAYSIAN_BANKS, index=None, placeholder='Search or select your bank', key='payment_bank')
             field_error(errors, 'bank')
-            st.caption('Never enter bank login details, passwords or OTPs.')
+            st.caption('Authorization only. Never enter bank login details, passwords, or OTPs.')
         elif method == 'DuitNow Mobile Number':
             details['mobile'] = st.text_input('DuitNow mobile number', placeholder='0123456789 or 01112345678', key='payment_duitnow_mobile', autocomplete='tel', max_chars=11)
             field_error(errors, 'mobile')
-            st.caption('011 numbers are supported. This number is used for validation only and is not saved.')
+            st.caption('011 numbers are supported. This number is used only for validation and is not saved.')
         elif method == 'E-Wallet':
             details['wallet'] = st.selectbox('E-wallet provider', MALAYSIAN_EWALLETS, index=None, placeholder='Select your e-wallet', key='payment_wallet')
             field_error(errors, 'wallet')
