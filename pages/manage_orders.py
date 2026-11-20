@@ -22,6 +22,7 @@ from services.order_service import (
     recommend_box_combinations,
     accept_box_recommendation,
     box_requirement_shortage_message,
+    box_requirement_capacity,
     set_manual_box_requirements,
 )
 
@@ -174,28 +175,58 @@ with right:
             st.error(box_requirement_shortage_message(order["order_id"]))
 
         with st.expander("Adjust Box Requirement Manually"):
-            st.caption("Manual selections still must provide enough capacity and cannot exceed available box inventory.")
+            st.caption("Manual selections recalculate seafood capacity immediately. Quantities cannot exceed available box inventory.")
             inventory = list_box_inventory(exclude_order_id=order["order_id"])
             selections = []
-            # Keep quantity changes in the browser until Staff explicitly
-            # saves. This avoids a full rerun and inventory query on each +/-.
-            with st.form(f"manual_box_requirement_{order['order_id']}", border=False):
-                cols = st.columns(2)
-                for i, box in enumerate(inventory):
-                    with cols[i % 2]:
-                        qty = st.number_input(
-                            f"{int(box['capacity_litre'])}L quantity",
-                            min_value=0,
-                            max_value=int(box["available_quantity"]),
-                            value=0,
-                            step=1,
-                            key=f"manual_box_{order['order_id']}_{box['box_profile_id']}",
-                            help=f"Fixed size {box['length']:g} × {box['width']:g} × {box['height']:g} cm; max {box['max_seafood_weight_kg']:g} kg each; available {box['available_quantity']}.",
-                        )
-                        selections.append((box["box_profile_id"], qty))
-                save_manual = st.form_submit_button(
-                    "Save Manual Box Requirement", type="primary", use_container_width=True
+            current_quantities = {
+                int(req["box_profile_id"]): int(req["quantity"])
+                for req in order.get("box_requirements", [])
+            }
+            if not inventory:
+                st.error("No active box inventory is available for this order.")
+            cols = st.columns(2)
+            for i, box in enumerate(inventory):
+                with cols[i % 2]:
+                    qty = st.number_input(
+                        f"{int(box['capacity_litre'])}L quantity",
+                        min_value=0,
+                        max_value=int(box["available_quantity"]),
+                        value=min(current_quantities.get(int(box["box_profile_id"]), 0), int(box["available_quantity"])),
+                        step=1,
+                        key=f"manual_box_{order['order_id']}_{box['box_profile_id']}",
+                        help=f"Fixed internal dimensions: {box['length']:g} x {box['width']:g} x {box['height']:g} cm; max {box['max_seafood_weight_kg']:g} kg seafood per box; {box['available_quantity']} available.",
+                    )
+                    selections.append((box["box_profile_id"], qty))
+
+            selected_boxes = [
+                {
+                    "capacity_per_box_kg": float(box["max_seafood_weight_kg"] or 0),
+                    "quantity": int(qty),
+                }
+                for box in inventory
+                for profile_id, qty in selections
+                if int(profile_id) == int(box["box_profile_id"]) and int(qty) > 0
+            ]
+            selected_capacity, remaining_kg, unused_capacity = box_requirement_capacity(total_weight, selected_boxes)
+            capacity_col, remaining_col = st.columns(2)
+            capacity_col.metric("Selected Box Capacity", f"{selected_capacity:g} kg")
+            remaining_col.metric("Remaining Seafood", f"{remaining_kg:g} kg")
+            capacity_sufficient = bool(selected_boxes) and remaining_kg <= 1e-9
+            if capacity_sufficient:
+                st.success("Box capacity is sufficient.")
+                st.caption(f"Unused box capacity: {unused_capacity:g} kg.")
+            else:
+                st.error(
+                    f"Insufficient box capacity. {remaining_kg:g} kg of seafood still requires box capacity."
                 )
+
+            save_manual = st.button(
+                "Save Manual Box Requirement",
+                type="primary",
+                use_container_width=True,
+                disabled=not capacity_sufficient,
+                key=f"save_manual_box_requirement_{order['order_id']}",
+            )
             if save_manual:
                 ok, msg = set_manual_box_requirements(order["order_id"], selections)
                 if ok:

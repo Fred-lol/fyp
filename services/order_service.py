@@ -764,54 +764,110 @@ def _allocate_loaded_weights(total_weight, selected_boxes):
     return allocations
 
 
+def box_requirement_capacity(order_weight_kg, selected_boxes):
+    """Return selected seafood capacity, remaining order weight, and excess capacity."""
+    order_weight = float(order_weight_kg or 0)
+    capacity = sum(
+        float(box.get("capacity_per_box_kg") or 0) * int(box.get("quantity") or 0)
+        for box in selected_boxes
+    )
+    return capacity, max(0.0, order_weight - capacity), max(0.0, capacity - order_weight)
+
+
 def save_box_combination(order_id, selected_boxes):
     order = get_order(order_id)
     if not order:
         return False, "Order not found."
     if order.get("archived_at"):
         return False, "Archived orders are read-only."
-    total_weight = float(order["total_weight_kg"] or 0)
-    total_capacity = sum(float(b["capacity_per_box_kg"]) * int(b["quantity"]) for b in selected_boxes)
-    if total_capacity + 1e-9 < total_weight:
-        return False, f"Selected boxes provide only {total_capacity:g} kg capacity for a {total_weight:g} kg order."
+    try:
+        total_weight = float(order["total_weight_kg"] or 0)
+    except (TypeError, ValueError):
+        return False, "The order weight is invalid. Refresh the order and try again."
+    if not isfinite(total_weight) or total_weight <= 0:
+        return False, "The order must have a valid seafood weight greater than 0 kg."
+    if not selected_boxes:
+        return False, "Select at least one box before saving the requirement."
 
-    for b in selected_boxes:
-        available = available_quantity(int(b["box_profile_id"]), exclude_order_id=order_id)
-        if int(b["quantity"]) > available:
-            box = get_box(int(b["box_profile_id"]))
-            short = int(b["quantity"]) - available
+    requested = {}
+    for box in selected_boxes:
+        try:
+            profile_id = int(box["box_profile_id"])
+            raw_quantity = box["quantity"]
+            quantity = int(raw_quantity)
+            if quantity != raw_quantity or quantity <= 0:
+                raise ValueError
+        except (KeyError, TypeError, ValueError, OverflowError):
+            return False, "Box quantities must be whole numbers greater than 0."
+        if profile_id in requested:
+            return False, "Each box size can be selected only once. Combine duplicate quantities and try again."
+        requested[profile_id] = quantity
+
+    canonical_boxes, shortages = [], []
+    try:
+        # Re-read live capacity and inventory immediately before persisting.
+        for profile_id, quantity in requested.items():
+            current_box = get_box(profile_id)
+            if not current_box or current_box.get("status") != "Active":
+                return False, "A selected box template is no longer available. Refresh and try again."
+            capacity = float(current_box.get("max_seafood_weight_kg") or 0)
+            if not isfinite(capacity) or capacity <= 0:
+                return False, f"{current_box['box_name']} has no valid seafood weight capacity configured."
+            available = available_quantity(profile_id, exclude_order_id=order_id)
+            if quantity > available:
+                shortages.append(
+                    f"{current_box['box_name']} ({int(current_box['capacity_litre'])}L): "
+                    f"need {quantity}, only {available} available"
+                )
+            canonical_boxes.append({
+                "box_profile_id": profile_id,
+                "box_name": current_box["box_name"],
+                "capacity_litre": current_box["capacity_litre"],
+                "quantity": quantity,
+                "capacity_per_box_kg": capacity,
+                "dimensions": f"{current_box['length']:g} × {current_box['width']:g} × {current_box['height']:g} cm",
+            })
+
+        total_capacity, remaining, _unused = box_requirement_capacity(total_weight, canonical_boxes)
+        if remaining > 1e-9:
             return False, (
-                f"Insufficient physical boxes: {short} × {box['box_name']} is short "
-                f"(need {int(b['quantity'])}, available {available})."
+                f"Insufficient box capacity. {remaining:g} kg of seafood still requires box capacity "
+                f"({total_capacity:g} kg selected for a {total_weight:g} kg order)."
             )
+        if shortages:
+            return False, "Insufficient box inventory: " + "; ".join(shortages) + "."
 
-    allocations = _allocate_loaded_weights(total_weight, selected_boxes)
-    with db_session() as conn:
-        conn.execute("DELETE FROM order_box_requirements WHERE order_id=?", (order_id,))
-        for box, weights in allocations:
-            qty = int(box["quantity"])
-            positive = [w for w in weights if w > 0]
-            # order_box_requirements stores one loaded weight per template. For
-            # multiple boxes of the same template use the average actual load;
-            # optimization expands the template into individual box instances.
-            avg_load = sum(positive) / qty if qty else 0
-            if avg_load <= 0:
-                continue
-            conn.execute(
-                """
-                INSERT INTO order_box_requirements(order_id,box_profile_id,quantity,loaded_weight_per_box)
-                VALUES(?,?,?,?)
-                """,
-                (order_id, int(box["box_profile_id"]), qty, avg_load),
-            )
-    return True, "Recommended box requirement saved successfully."
+        allocations = _allocate_loaded_weights(total_weight, canonical_boxes)
+        with db_session() as conn:
+            conn.execute("DELETE FROM order_box_requirements WHERE order_id=?", (order_id,))
+            for box, weights in allocations:
+                qty = int(box["quantity"])
+                positive = [weight for weight in weights if weight > 0]
+                # The optimizer expands this template row into individual boxes.
+                avg_load = sum(positive) / qty if qty else 0
+                if avg_load <= 0:
+                    continue
+                conn.execute(
+                    """
+                    INSERT INTO order_box_requirements(order_id,box_profile_id,quantity,loaded_weight_per_box)
+                    VALUES(?,?,?,?)
+                    """,
+                    (order_id, int(box["box_profile_id"]), qty, avg_load),
+                )
+    except Exception:
+        # The db_session context rolls back failed writes and failed commits.
+        return False, "The box requirement could not be saved. Please retry; no changes were confirmed."
+    return True, "Box requirement saved successfully."
 
 
 def accept_box_recommendation(order_id, recommendation_index=0):
     recs = recommend_box_combinations(order_id, limit=max(3, recommendation_index + 1))
     if not recs:
         return False, box_requirement_shortage_message(order_id)
-    return save_box_combination(order_id, recs[recommendation_index]["boxes"])
+    if recommendation_index < 0 or recommendation_index >= len(recs):
+        return False, "That recommendation is no longer available. Refresh and try again."
+    ok, message = save_box_combination(order_id, recs[recommendation_index]["boxes"])
+    return ok, "Box recommendation accepted and saved successfully." if ok else message
 
 
 def set_manual_box_requirements(order_id, selections):
@@ -821,22 +877,30 @@ def set_manual_box_requirements(order_id, selections):
         return False, "Order not found."
     selected_boxes = []
     for box_profile_id, qty in selections:
-        if int(qty) <= 0:
+        try:
+            profile_id = int(box_profile_id)
+            quantity = int(qty)
+            if quantity != qty or quantity < 0:
+                return False, "Box quantities must be whole numbers of 0 or more."
+        except (TypeError, ValueError, OverflowError):
+            return False, "Choose a valid box size and enter a whole quantity of 0 or more."
+        if quantity == 0:
             continue
-        box = get_box(int(box_profile_id))
+        box = get_box(profile_id)
         if not box or box["status"] != "Active":
-            return False, "One selected box template is unavailable."
+            return False, "A selected box template is unavailable. Refresh inventory and try again."
         selected_boxes.append({
             "box_profile_id": box["box_profile_id"],
             "box_name": box["box_name"],
             "capacity_litre": box["capacity_litre"],
-            "quantity": int(qty),
+            "quantity": quantity,
             "capacity_per_box_kg": float(box["max_seafood_weight_kg"]),
             "dimensions": f"{box['length']:g} × {box['width']:g} × {box['height']:g} cm",
         })
     if not selected_boxes:
-        return False, "Select at least one box."
-    return save_box_combination(order_id, selected_boxes)
+        return False, "Select at least one box before saving the requirement."
+    ok, message = save_box_combination(order_id, selected_boxes)
+    return ok, "Manual box requirements saved successfully." if ok else message
 
 
 def eligible_orders_for_optimization(collection_point_id=None):
