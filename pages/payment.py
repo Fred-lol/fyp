@@ -67,7 +67,7 @@ def submit_demo_order(cart, point_id, method, details, total):
         return
     errors = validate_payment_details(method, details)
     if point_id is None:
-        errors['collection_point'] = 'Select a collection point before placing your demo order.'
+        errors['collection_point'] = 'Select a collection point before placing your order.'
     st.session_state.payment_errors = errors
     if errors:
         return
@@ -157,7 +157,7 @@ def render_payment(cart, point_id, total):
         elif method == 'Online Banking (FPX)':
             details['bank'] = st.selectbox('Malaysian bank', MALAYSIAN_BANKS, index=None, placeholder='Search or select your bank', key='payment_bank')
             field_error(errors, 'bank')
-            st.caption('Authorization is simulated. Never enter bank login details, passwords or OTPs.')
+            st.caption('Never enter bank login details, passwords or OTPs.')
         elif method == 'DuitNow Mobile Number':
             details['mobile'] = st.text_input('DuitNow mobile number', placeholder='0123456789 or 01112345678', key='payment_duitnow_mobile', autocomplete='tel', max_chars=11)
             field_error(errors, 'mobile')
