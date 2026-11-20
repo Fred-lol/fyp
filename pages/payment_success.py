@@ -43,8 +43,6 @@ with st.container(border=True):
     d.metric("Order Status", order["status"])
 
     st.divider()
-    if payment.get("payment_status") in {"Simulated", "Demo Refund Pending", "Refund Pending"}:
-        st.caption("Payment simulation only; no actual money was transferred.")
     st.write(f"**Payment Method:** {payment.get('payment_method') or '—'}")
     st.write(f"**Payment Reference:** {payment.get('transaction_reference') or '—'}")
     st.write(f"**Total Seafood Weight:** {float(order.get('total_weight_kg') or 0):g} kg")

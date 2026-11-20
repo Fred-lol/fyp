@@ -50,8 +50,6 @@ for o in orders:
         st.write(f"**Total Order Weight:** {float(detail.get('total_weight_kg') or 0):g} kg")
         payment = detail.get("payment") or {}
         st.write(f"**Payment Status:** {payment_status_label(payment.get('payment_status'))}")
-        if payment.get("payment_status") in {"Simulated", "Demo Refund Pending", "Refund Pending"}:
-            st.caption("Payment simulation only; no actual money was transferred.")
         st.write(f"**Amount:** RM {float(payment.get('amount') or detail.get('total_amount') or 0):,.2f}")
         if detail["status"] == "Cancelled":
             cancellation_event = next(
