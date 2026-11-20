@@ -106,8 +106,30 @@ def test_favorite_persists_and_add_to_cart_returns_to_catalogue(catalogue_app):
 
     app.button(key="view_details_31").click().run()
     assert app.session_state["selected_seafood_id"] == 31
+    detail_favorite = app.button(key="detail_favorite")
+    assert detail_favorite.label == ""
+    assert detail_favorite.help == "Remove from favorites"
     app.button(key="detail_add_to_cart").click().run()
     assert not app.exception
     assert app.session_state.get("selected_seafood_id") is None
     assert app.session_state["cart"] == {31: 10}
     assert app.session_state["logged_in"] is True
+
+
+def test_detail_favorite_icon_toggles_and_stays_synchronized(catalogue_app):
+    app, favorite_ids = catalogue_app
+    app.run()
+    app.button(key="view_details_31").click().run()
+
+    favorite_button = app.button(key="detail_favorite")
+    assert favorite_button.label == ""
+    assert favorite_button.icon == ":material/favorite_border:"
+    assert favorite_button.help == "Add to favorites"
+    favorite_button.click().run()
+    assert favorite_ids == {31}
+    favorite_button = app.button(key="detail_favorite")
+    assert favorite_button.icon == ":material/favorite:"
+    assert favorite_button.help == "Remove from favorites"
+
+    app.button(key="back_to_catalogue").click().run()
+    assert app.button(key="favorite_31").help == "Remove from favorites"

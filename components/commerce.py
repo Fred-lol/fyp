@@ -29,7 +29,11 @@ COMMERCE_CSS = """
 .aq-product-stock{margin-top:auto;display:flex;align-items:center;gap:7px;color:var(--aq-muted);font-size:12px;line-height:1.4}.aq-product-stock:before{content:"";width:8px;height:8px;flex:none;border-radius:50%;background:#0b9b78}.aq-product-stock.aq-low:before{background:#dc9b28}
 .st-key-catalogue_grid [class*="st-key-view_details_"]{margin-top:2px}.st-key-catalogue_grid [class*="st-key-view_details_"] button{min-height:38px!important;border-radius:8px!important}
 .aq-detail-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,4vw,52px);align-items:start}.aq-detail-image{position:sticky;top:20px}.aq-detail-image .aq-seafood-card-image{width:100%;aspect-ratio:4/3;height:auto;border-radius:12px;overflow:hidden;line-height:0;background:#f2f5f6;border:1px solid rgba(8,46,75,.12)}.aq-detail-image img{display:block;width:100%;height:100%;max-height:none!important;object-fit:contain!important;object-position:center;background:#f2f5f6}.aq-detail-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.aq-detail-title-row h2{margin:0;color:var(--aq-text)}.aq-detail-meta{color:var(--aq-muted);margin:8px 0 16px}.aq-detail-description{min-height:4.5em;line-height:1.65;color:var(--aq-text);white-space:pre-line}.aq-detail-price{font-size:24px;font-weight:800;color:var(--aq-text);margin:18px 0 8px}.aq-detail-stock{color:var(--aq-teal);font-weight:700}.aq-detail-subtotal{font-size:19px;font-weight:750;color:var(--aq-text);margin:14px 0}
-.st-key-detail_favorite button{min-height:38px!important;padding:0 12px!important;border-radius:999px!important}
+.st-key-detail_title_row[data-testid="stVerticalBlock"]{display:flex!important;flex-direction:row!important;align-items:flex-start!important;justify-content:space-between!important;gap:14px!important}
+.st-key-detail_title_row>[data-testid="stElementContainer"]:first-child{flex:1 1 auto!important;min-width:0!important}
+.st-key-detail_title_row .st-key-detail_favorite{flex:0 0 38px!important;width:38px!important;height:38px!important;margin:0!important}
+.st-key-detail_favorite button{width:36px!important;height:36px!important;min-height:36px!important;padding:0!important;border-radius:50%!important;background:#fff!important;border:1px solid rgba(8,46,75,.16)!important;color:#b42345!important;box-shadow:0 2px 8px rgba(8,46,75,.14)!important}
+.st-key-detail_favorite button [data-testid="stIconMaterial"]{font-size:20px!important;color:#e11d48!important;-webkit-text-fill-color:#e11d48!important}
 .st-key-cart_panel{width:min(420px,calc(100vw - 64px));max-width:100%;padding:4px!important}.st-key-cart_panel [class*="st-key-cart_line_"]{padding:16px 0!important;border-bottom:1px solid var(--aq-border)}
 .aq-cart-line-title{display:flex;justify-content:space-between;gap:16px;font-size:15px;color:var(--aq-text)}.aq-cart-totals{display:flex;align-items:end;justify-content:space-between;gap:16px;padding:18px 0;color:var(--aq-text)}.aq-cart-total-amount{font-size:24px;font-weight:700}
 @media(max-width:1100px){.st-key-catalogue_grid[data-testid="stVerticalBlock"]{grid-template-columns:repeat(3,minmax(0,1fr))}}
@@ -89,16 +93,17 @@ def product_details(product, project_dir, on_add, *, is_favorite=False, on_favor
     with image_col:
         st.html(f'<div class="aq-detail-image">{seafood_card_image(product, project_dir)}</div>')
     with info_col:
-        st.html(f'<div class="aq-detail-title-row"><h2>{name}</h2></div>')
-        st.button(
-            "Saved to favorites" if is_favorite else "Add to favorites",
-            icon=":material/favorite:" if is_favorite else ":material/favorite_border:",
-            key="detail_favorite",
-            type="tertiary",
-            help="Remove from favorites" if is_favorite else "Add to favorites",
-            on_click=on_favorite,
-            args=(product_id,),
-        )
+        with st.container(key="detail_title_row"):
+            st.html(f'<div class="aq-detail-title-row"><h2>{name}</h2></div>')
+            st.button(
+                "",
+                icon=":material/favorite:" if is_favorite else ":material/favorite_border:",
+                key="detail_favorite",
+                type="tertiary",
+                help="Remove from favorites" if is_favorite else "Add to favorites",
+                on_click=on_favorite,
+                args=(product_id,),
+            )
         st.html(
             f'<div class="aq-detail-meta">{escape(product.get("category") or "Seafood")}</div>'
             f'<p class="aq-detail-description">{escape(product.get("description") or "Fresh seafood available for wholesale ordering.")}</p>'
