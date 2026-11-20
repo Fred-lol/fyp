@@ -22,7 +22,7 @@ bootstrap_app()
 st.set_page_config(page_title="Checkout | AquaLoad", page_icon="AquaLoad.png", layout="wide")
 apply_theme()
 customer_sidebar()
-page_header("Review & place your order", "Choose your collection point and complete checkout. No money will be charged.", "Customer checkout", back_target="pages/order_seafood.py")
+page_header("Review & place your order", "Choose your collection point and payment method.", "Customer checkout", back_target="pages/order_seafood.py")
 st.html("""<style>
 .st-key-checkout_summary,.st-key-checkout_payment{padding:24px!important;background:var(--aq-card)!important;border:1px solid var(--aq-border)!important;border-radius:12px!important}
 .st-key-checkout_payment [data-testid="stForm"]{border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important}
