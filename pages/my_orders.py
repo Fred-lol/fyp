@@ -16,6 +16,7 @@ from services.order_service import (
     update_customer_order,
     cancel_order,
 )
+from services.payment_service import payment_status_label
 from constants import EDITABLE_ORDER_STATUSES,CANCELLABLE_ORDER_STATUSES
 bootstrap_app()
 
@@ -40,7 +41,7 @@ filter_ = st.radio(
 orders=list_customer_orders(st.session_state.user_id, filter_)
 if not orders: empty_state("No orders are available in this view.")
 for o in orders:
-    with st.expander(f"Order #{o['order_id']} · {o['status']} · {float(o.get('total_weight_kg') or 0):g} kg · {o.get('payment_status') or 'Not Paid'}"):
+    with st.expander(f"Order #{o['order_id']} · {o['status']} · {float(o.get('total_weight_kg') or 0):g} kg · Payment: {payment_status_label(o.get('payment_status'))}"):
         detail=get_order(o['order_id'],st.session_state.user_id)
         st.write(f"**Status:** {detail['status']}")
         st.write(f"**Collection Point:** {detail['collection_point'] or 'Not assigned yet'}")
@@ -48,20 +49,23 @@ for o in orders:
             st.info(f"Self-pickup at {detail['collection_point']}. No lorry delivery is required.")
         st.write(f"**Total Order Weight:** {float(detail.get('total_weight_kg') or 0):g} kg")
         payment = detail.get("payment") or {}
-        st.write(f"**Payment Status:** {payment.get('payment_status') or 'Not Paid'}")
+        st.write(f"**Payment Status:** {payment_status_label(payment.get('payment_status'))}")
+        if payment.get("payment_status") in {"Simulated", "Demo Refund Pending", "Refund Pending"}:
+            st.caption("Payment simulation only; no actual money was transferred.")
         st.write(f"**Amount:** RM {float(payment.get('amount') or detail.get('total_amount') or 0):,.2f}")
-        admin_cancellation_notice = False
         if detail["status"] == "Cancelled":
             cancellation_event = next(
                 (entry for entry in reversed(detail.get("history", [])) if entry.get("status") == "Cancelled"),
                 None,
             )
-            admin_cancellation_notice = bool(
-                cancellation_event
-                and str(cancellation_event.get("updated_by")) != str(st.session_state.user_id)
-            )
-            if admin_cancellation_notice:
-                st.info(cancellation_customer_message(by_staff=True))
+            if cancellation_event:
+                st.info(
+                    cancellation_event.get("note")
+                    or cancellation_customer_message(
+                        payment.get("payment_status"),
+                        by_staff=str(cancellation_event.get("updated_by")) != str(st.session_state.user_id),
+                    )
+                )
         st.markdown("#### Order Progress")
         for index, history in enumerate(detail.get("history", []), start=1):
             label = "Current" if index == len(detail["history"]) else "Completed"
@@ -116,7 +120,6 @@ for o in orders:
                 if st.button("Cancel Order", key=f"cancel_{o['order_id']}", type="primary", use_container_width=True, disabled=not confirm):
                     ok, msg = cancel_order(o['order_id'], st.session_state.user_id)
                     if ok:
-                        flash("success", msg)
                         st.rerun()
                     else:
                         st.error(msg)

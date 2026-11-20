@@ -25,6 +25,7 @@ from services.order_service import (
     box_requirement_capacity,
     set_manual_box_requirements,
 )
+from services.payment_service import payment_status_label
 
 bootstrap_app()
 st.set_page_config(page_title="Customer Orders | AquaLoad", page_icon="📋", layout="wide")
@@ -92,7 +93,7 @@ summary_rows = [{
     "Customer Location": f"{o.get('customer_city') or '—'}, {o.get('customer_state') or '—'}",
     "Status": o["status"],
     "Total Seafood Weight": f"{float(o['total_weight_kg']):g} kg",
-    "Payment": o.get("payment_status") or "Not Paid",
+    "Payment": payment_status_label(o.get("payment_status")),
     "Order Amount": f"RM {float(o.get('order_total_amount') or 0):,.2f}",
     "Collection Point": o.get("collection_point") or "Not assigned",
     "Updated": friendly_datetime(o["updated_at"]),
@@ -113,7 +114,9 @@ with left:
         st.write(f"**Customer Location:** {order.get('customer_city') or '—'}, {order.get('customer_state') or '—'}")
         st.write(f"**Current Status:** {order['status']}")
         payment = order.get("payment") or {}
-        st.write(f"**Payment:** {payment.get('payment_status') or 'Not Paid'} · RM {float(payment.get('amount') or order.get('total_amount') or 0):,.2f}")
+        st.write(f"**Payment status:** {payment_status_label(payment.get('payment_status'))} · RM {float(payment.get('amount') or order.get('total_amount') or 0):,.2f}")
+        if payment.get("payment_status") in {"Simulated", "Demo Refund Pending", "Refund Pending"}:
+            st.caption("Payment simulation only; no actual money was transferred.")
         st.write(f"**Collection Point:** {order.get('collection_point_name') or order.get('collection_point') or 'Not assigned'}")
         st.markdown("#### Items")
         for item in order["items"]:

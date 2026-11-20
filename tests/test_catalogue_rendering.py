@@ -86,10 +86,18 @@ def test_view_details_opens_product_without_losing_customer_session(catalogue_ap
 def test_favorite_persists_and_add_to_cart_returns_to_catalogue(catalogue_app):
     app, favorite_ids = catalogue_app
     app.run()
+    filter_button = app.button(key="catalogue_favorites_filter")
+    assert filter_button.label == "♡"
+    assert filter_button.help == "Show favorites only"
     app.button(key="favorite_31").click().run()
     assert not app.exception
     assert favorite_ids == {31}
     assert app.session_state["favorite_product_ids"] == {31}
+
+    app.button(key="catalogue_favorites_filter").click().run()
+    assert app.session_state["catalogue_favorites_only"] is True
+    assert app.button(key="catalogue_favorites_filter").label == "♥"
+    assert len([button for button in app.button if button.label == "View Details"]) == 1
 
     app.button(key="view_details_31").click().run()
     assert app.session_state["selected_seafood_id"] == 31

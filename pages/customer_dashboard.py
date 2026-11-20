@@ -15,6 +15,7 @@ from components.navigation import customer_sidebar
 from components.cards import metric_card, empty_state
 from components.display import friendly_datetime
 from services.order_service import list_customer_orders
+from services.payment_service import payment_status_label
 
 bootstrap_app()
 
@@ -76,7 +77,7 @@ else:
                 "Order Date": friendly_datetime(order["order_date"]),
                 "Items": int(order.get("item_count") or 0),
                 "Total Weight": f"{float(order.get('total_weight_kg') or 0):g} kg",
-                "Payment": order.get("payment_status") or "Not Paid",
+                "Payment": payment_status_label(order.get("payment_status")),
                 "Status": order["status"],
             }
         )

@@ -18,10 +18,12 @@ class CancellationConnection:
             return Row({"status": self.status})
         if sql.startswith("SELECT * FROM seafood_orders"):
             return Row({"status": self.status, "collection_assignment": "Customer Selected"})
+        if sql.startswith("SELECT payment_status FROM payments"):
+            return Row({"payment_status": self.payment_status})
         if sql.startswith("UPDATE seafood_orders"):
             self.status = "Cancelled"
         if sql.startswith("UPDATE payments"):
-            self.payment_status = "Demo Refund Pending"
+            self.payment_status = "Refund Pending"
         if sql.startswith("INSERT INTO order_status_history"):
             self.history.append(params)
         return Row(None)
@@ -46,9 +48,9 @@ def test_customer_cancel_is_atomic_and_does_not_duplicate_notice(monkeypatch):
     monkeypatch.setattr(order_service, "_restore_order_stock", lambda *args: setattr(conn, "stock_restores", conn.stock_restores + 1))
     assert order_service.cancel_order(1, 2)[0]
     assert not order_service.cancel_order(1, 2)[0]
-    assert conn.status == "Cancelled" and conn.payment_status == "Demo Refund Pending"
+    assert conn.status == "Cancelled" and conn.payment_status == "Refund Pending"
     assert conn.stock_restores == 1 and len(conn.history) == 1
-    assert conn.history[0][3] == order_service.cancellation_customer_message()
+    assert conn.history[0][3] == order_service.cancellation_customer_message("Simulated")
 
 
 def test_staff_cancel_persists_customer_notice_once(monkeypatch):
@@ -62,9 +64,9 @@ def test_staff_cancel_persists_customer_notice_once(monkeypatch):
     monkeypatch.setattr(order_service, "_restore_order_stock", lambda *args: setattr(conn, "stock_restores", conn.stock_restores + 1))
     assert order_service.update_order_status(1, "Cancelled", 9)[0]
     assert not order_service.update_order_status(1, "Cancelled", 9)[0]
-    assert conn.status == "Cancelled" and conn.payment_status == "Demo Refund Pending"
+    assert conn.status == "Cancelled" and conn.payment_status == "Refund Pending"
     assert conn.stock_restores == 1 and len(conn.history) == 1
-    assert conn.history[0][3] == order_service.cancellation_customer_message(by_staff=True)
+    assert conn.history[0][3] == order_service.cancellation_customer_message("Simulated", by_staff=True)
 
 
 def test_staff_cancellation_notice_remains_in_customer_orders_after_rerun(monkeypatch):
@@ -75,14 +77,14 @@ def test_staff_cancellation_notice_remains_in_customer_orders_after_rerun(monkey
     monkeypatch.setattr(navigation, "customer_sidebar", lambda: None)
     order = {
         "order_id": 1, "status": "Cancelled", "total_weight_kg": 10,
-        "payment_status": "Demo Refund Pending",
+        "payment_status": "Refund Pending",
     }
     detail = {
         **order, "collection_point": "LKIM Kuala Perlis", "total_amount": 200,
         "collection_assignment": "Customer Selected", "items": [],
-        "payment": {"payment_status": "Demo Refund Pending", "amount": 200},
+        "payment": {"payment_status": "Refund Pending", "amount": 200},
         "history": [{"status": "Cancelled", "updated_by": 9,
-                     "note": order_service.cancellation_customer_message(by_staff=True)}],
+                     "note": order_service.cancellation_customer_message("Refund Pending", by_staff=True)}],
     }
     monkeypatch.setattr(order_service, "list_customer_orders", lambda customer_id, view_filter: [order])
     monkeypatch.setattr(order_service, "get_order", lambda order_id, customer_id: detail)
@@ -92,7 +94,7 @@ def test_staff_cancellation_notice_remains_in_customer_orders_after_rerun(monkey
         app.run()
         assert not app.exception
         assert any(
-            order_service.cancellation_customer_message(by_staff=True) in message.value
+            order_service.cancellation_customer_message("Refund Pending", by_staff=True) in message.value
             for message in app.info
         )
 
@@ -118,3 +120,21 @@ def test_archived_cancelled_orders_remain_queryable_for_customer_notice(monkeypa
     order_service.list_customer_orders(2, "Cancelled")
     assert "o.archived_at IS NULL OR o.status='Cancelled'" in queries[0][0]
     assert queries[0][1] == (2,)
+
+
+def test_unpaid_cancellation_does_not_claim_refund_or_rewrite_payment(monkeypatch):
+    conn = CancellationConnection()
+    conn.payment_status = "Not Paid"
+
+    @contextmanager
+    def session():
+        yield conn
+
+    monkeypatch.setattr(order_service, "db_session", session)
+    monkeypatch.setattr(order_service, "_restore_order_stock", lambda *args: None)
+    ok, message = order_service.cancel_order(1, 2)
+
+    assert ok
+    assert message == "Order cancelled successfully."
+    assert conn.payment_status == "Not Paid"
+    assert conn.history[0][3] == message

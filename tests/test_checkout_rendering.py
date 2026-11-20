@@ -23,7 +23,7 @@ def test_checkout_ui_validation_and_single_summary(monkeypatch, method):
         assert not payment.validate_payment_details(args[2],args[3])
         assert args[4]==1 and kwargs['submission_key']
         calls['submit']+=1
-        return True,'Demo order submitted',42
+        return True,'Order placed successfully.',42
     monkeypatch.setattr(payment,'complete_demo_payment',submit)
     monkeypatch.setattr(st,'switch_page',lambda page:calls['navigation'].append(page))
     app=AppTest.from_file(Path('pages/payment.py').resolve())
@@ -33,7 +33,7 @@ def test_checkout_ui_validation_and_single_summary(monkeypatch, method):
     app.run()
     assert not app.exception
     def press():
-        next(button for button in app.button if button.label=='Place Demo Order').click().run()
+        next(button for button in app.button if button.label=='Place Order').click().run()
     press()
     assert calls['submit']==0
     assert 'collection_point' in app.session_state['payment_errors']

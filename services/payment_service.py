@@ -24,6 +24,21 @@ MALAYSIAN_EWALLETS = [
 ]
 
 
+def payment_status_label(status):
+    """Translate stored transaction outcomes into concise customer/staff labels."""
+    status = str(status or "").strip()
+    normalized = status.casefold()
+    if normalized in {"paid", "simulated", "successful", "success"}:
+        return "Successful"
+    if normalized in {"demo refund pending", "refund pending"}:
+        return "Refund Pending"
+    if normalized in {"failed", "declined", "unsuccessful", "payment failed"}:
+        return "Unsuccessful"
+    if normalized in {"not paid", "unpaid"}:
+        return "Not paid"
+    return status or "Not recorded"
+
+
 def _valid_malaysian_mobile(value):
     """MCMC national mobile formats: 011 + 8 digits, other mobile prefixes + 7."""
     number = re.sub(r"[\s-]", "", str(value or ""))
@@ -39,7 +54,7 @@ def validate_payment_details(payment_method, details):
     details = details or {}
     errors = {}
     if payment_method not in PAYMENT_METHODS:
-        return {"method": "Select a demo payment method."}
+        return {"method": "Select a payment method."}
     if payment_method == "Credit / Debit Card":
         name = str(details.get("cardholder") or "").strip()
         number = re.sub(r"[ -]", "", str(details.get("card_number") or ""))
@@ -48,7 +63,7 @@ def validate_payment_details(payment_method, details):
         if not 2 <= len(name) <= 80 or not re.fullmatch(r"[A-Za-z]+(?: [A-Za-z]+)*", name):
             errors["cardholder"] = "Enter 2–80 letters and spaces for the cardholder name."
         if not number.isascii() or not number.isdigit() or len(number) != 16:
-            errors["card_number"] = "Enter a valid 16-digit test card number."
+            errors["card_number"] = "Enter a valid 16-digit card number."
         match = re.fullmatch(r"(0[1-9]|1[0-2])/([0-9]{2})", expiry)
         if not match:
             errors["expiry"] = "Use a valid expiry in MM/YY format."
@@ -58,7 +73,7 @@ def validate_payment_details(payment_method, details):
             if (year, month) < (today.year, today.month):
                 errors["expiry"] = "Use the current month or a future expiry."
         if not re.fullmatch(r"[0-9]{3}", cvv):
-            errors["cvv"] = "Enter exactly 3 digits for the test CVV."
+            errors["cvv"] = "Enter exactly 3 digits for the CVV."
     if payment_method == "Online Banking (FPX)" and details.get("bank") not in MALAYSIAN_BANKS:
         errors["bank"] = "Select a supported Malaysian bank."
     if payment_method == "DuitNow Mobile Number":
@@ -141,7 +156,7 @@ def complete_demo_payment(customer_id, items, payment_method, payment_details=No
         conn.execute("SELECT pg_advisory_xact_lock(?)", (lock_id,))
         existing = conn.execute("SELECT order_id FROM payments WHERE transaction_reference=? AND customer_id=?", (reference, customer_id)).fetchone()
         if existing:
-            return True, "This demo order was already submitted. No duplicate was created.", existing['order_id']
+            return True, "This order was already submitted. No duplicate was created.", existing['order_id']
         ok, message, order_id = place_order(
             customer_id, items, collection_point_id=collection_point_id,
             _connection=conn, expected_total=expected_total,
@@ -155,7 +170,7 @@ def complete_demo_payment(customer_id, items, payment_method, payment_details=No
             WHERE oi.order_id=?""", (order_id,)).fetchone()['amount']
         conn.execute("""INSERT INTO payments(order_id,customer_id,amount,payment_method,payment_status,transaction_reference)
             VALUES(?,?,?,?,?,?)""", (order_id, customer_id, round(float(amount), 2), payment_method, "Simulated", reference))
-    return True, "Demo order submitted successfully. No money was charged.", order_id
+    return True, "Order placed successfully.", order_id
 
 
 def get_payment(order_id):

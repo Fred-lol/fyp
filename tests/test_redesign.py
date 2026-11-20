@@ -31,12 +31,28 @@ def test_invalid_demo_selection(method, details, field):
 
 
 @pytest.mark.parametrize("by_staff,message", [
-    (False, "Order cancelled successfully. Refund will be processed within 14 days (demo simulation)."),
-    (True, "Your order has been cancelled. Refund will be processed within 14 days (demo simulation)."),
+    (False, "Order cancelled successfully. Refund will be processed within 14 days."),
+    (True, "Your order has been cancelled. Refund will be processed within 14 days."),
 ])
 def test_cancellation_message_matches_payment_status(by_staff, message):
     from services.order_service import cancellation_customer_message
-    assert cancellation_customer_message(by_staff=by_staff) == message
+    assert cancellation_customer_message("Simulated", by_staff=by_staff) == message
+
+
+@pytest.mark.parametrize("status,label", [
+    ("Simulated", "Successful"),
+    ("Paid", "Successful"),
+    ("Refund Pending", "Refund Pending"),
+    ("Demo Refund Pending", "Refund Pending"),
+    ("Failed", "Unsuccessful"),
+    ("Not Paid", "Not paid"),
+])
+def test_transaction_status_has_clear_display_label(status, label):
+    assert payment.payment_status_label(status) == label
+
+
+def test_unpaid_cancellation_does_not_claim_a_refund():
+    assert orders.cancellation_customer_message("Not Paid") == "Order cancelled successfully."
 
 
 @pytest.mark.parametrize('field,value', [

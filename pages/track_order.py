@@ -21,6 +21,7 @@ from components.theme import apply_theme, page_header
 from components.tables import render_dataframe
 from services.order_service import get_order, list_customer_orders
 from services.tracking_service import get_order_tracking
+from services.payment_service import payment_status_label
 
 
 LKIM_KUALA_PERLIS = (6.3960, 100.1280)
@@ -140,7 +141,7 @@ order = get_order(selected, st.session_state.user_id)
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Order", f"#{order['order_id']}")
 c2.metric("Current Status", order["status"])
-c3.metric("Payment", (order.get("payment") or {}).get("payment_status") or "Not recorded")
+c3.metric("Payment", payment_status_label((order.get("payment") or {}).get("payment_status")))
 c4.metric("Order Total", f"RM {float(order.get('total_amount') or 0):,.2f}")
 st.info(_next_step(order["status"]))
 

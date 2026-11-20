@@ -395,10 +395,21 @@ def _restore_order_stock(conn, order_id, updated_by, movement_type="Order Cancel
 
 
 def cancellation_customer_message(payment_status=None, *, by_staff=False):
-    """Customer notice for a simulated cancellation; no financial refund occurs."""
+    """Return refund wording only when the recorded payment was successful."""
+    refund_applicable = payment_status in {
+        "Paid", "Simulated", "Successful", "Demo Refund Pending", "Refund Pending"
+    }
     if by_staff:
-        return "Your order has been cancelled. Refund will be processed within 14 days (demo simulation)."
-    return "Order cancelled successfully. Refund will be processed within 14 days (demo simulation)."
+        message = "Your order has been cancelled."
+        return (
+            message + " Refund will be processed within 14 days."
+            if refund_applicable else message
+        )
+    message = "Order cancelled successfully."
+    return (
+        message + " Refund will be processed within 14 days."
+        if refund_applicable else message
+    )
 
 
 def cancel_order(order_id, customer_id):
@@ -411,6 +422,11 @@ def cancel_order(order_id, customer_id):
             return False, "Order not found."
         if order["status"] not in CANCELLABLE_ORDER_STATUSES:
             return False, "This order can no longer be cancelled."
+        payment = conn.execute(
+            "SELECT payment_status FROM payments WHERE order_id=? FOR UPDATE", (order_id,)
+        ).fetchone()
+        payment_status = payment["payment_status"] if payment else None
+        cancellation_note = cancellation_customer_message(payment_status)
         _restore_order_stock(conn, order_id, customer_id)
         conn.execute(
             """
@@ -420,12 +436,16 @@ def cancel_order(order_id, customer_id):
             """,
             (order_id,),
         )
-        conn.execute("UPDATE payments SET payment_status='Demo Refund Pending' WHERE order_id=? AND payment_status IN ('Paid','Simulated')", (order_id,))
+        if payment_status in {"Paid", "Simulated", "Successful"}:
+            conn.execute(
+                "UPDATE payments SET payment_status='Refund Pending' WHERE order_id=? AND payment_status IN ('Paid','Simulated','Successful')",
+                (order_id,),
+            )
         conn.execute(
             "INSERT INTO order_status_history(order_id,status,updated_by,note) VALUES(?,?,?,?)",
-            (order_id, "Cancelled", customer_id, cancellation_customer_message()),
+            (order_id, "Cancelled", customer_id, cancellation_note),
         )
-    return True, cancellation_customer_message()
+    return True, cancellation_note
 
 
 def archive_expired_completed_orders():
@@ -638,9 +658,17 @@ def update_order_status(order_id, new_status, updated_by, note=""):
             if validation:
                 return False, validation
         if new_status == "Cancelled":
-            cancellation_notice = cancellation_customer_message(by_staff=True)
+            payment = conn.execute(
+                "SELECT payment_status FROM payments WHERE order_id=? FOR UPDATE", (order_id,)
+            ).fetchone()
+            payment_status = payment["payment_status"] if payment else None
+            cancellation_notice = cancellation_customer_message(payment_status, by_staff=True)
             _restore_order_stock(conn, order_id, updated_by, "Staff Cancellation")
-            conn.execute("UPDATE payments SET payment_status='Demo Refund Pending' WHERE order_id=? AND payment_status IN ('Paid','Simulated')", (order_id,))
+            if payment_status in {"Paid", "Simulated", "Successful"}:
+                conn.execute(
+                    "UPDATE payments SET payment_status='Refund Pending' WHERE order_id=? AND payment_status IN ('Paid','Simulated','Successful')",
+                    (order_id,),
+                )
         conn.execute(
             """
             UPDATE seafood_orders
