@@ -18,6 +18,7 @@ from bootstrap import bootstrap_app
 from components.cards import empty_state
 from components.navigation import customer_sidebar
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe
 from services.order_service import get_order, list_customer_orders
 from services.tracking_service import get_order_tracking
 
@@ -162,7 +163,7 @@ with right:
     st.metric("Total Seafood Weight", f"{order['total_weight_kg']:g} kg")
     st.caption(f"Last updated: {_display_timestamp(order.get('updated_at'))}")
     item_rows = [{"Seafood": item["product_name"], "Quantity": f"{float(item['quantity']):g} {item['unit']}"} for item in order["items"]]
-    st.dataframe(pd.DataFrame(item_rows), use_container_width=True, hide_index=True)
+    render_dataframe(pd.DataFrame(item_rows), use_container_width=True, hide_index=True)
 
 if order.get("collection_assignment") == "Local Pickup":
     st.stop()

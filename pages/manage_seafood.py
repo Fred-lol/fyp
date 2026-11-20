@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
 
 from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe
 from components.navigation import staff_sidebar, require_staff
 from components.seafood_images import seafood_image_source
 from components.display import friendly_datetime
@@ -326,7 +327,7 @@ with tab_manage:
             "edit": ":material/edit:",
             "delete": ":material/delete:",
         } for product in products]
-        st.dataframe(
+        render_dataframe(
             pd.DataFrame(rows), use_container_width=True, hide_index=True, key="seafood_products_table",
             column_config={
                 "image": st.column_config.ImageColumn("Image", width="small"),

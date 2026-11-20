@@ -360,6 +360,27 @@ div[class*="stElementToolbar"] button:hover{
 .stDownloadButton > button:disabled *,[data-testid="stFormSubmitButton"] > button:disabled *,
 [data-testid="stDownloadButton"] > button:disabled *{color:var(--aq-muted)!important;fill:currentColor!important;stroke:currentColor!important;opacity:1!important}
 
+/* Dark-mode text contrast for dataframe DOM overlays. Canvas cells and headers
+   receive native ink colors from components.tables; this rule covers the
+   dataframe's own column menus without affecting unrelated popovers. */
+.stDataFrameColumnMenu [role="menuitem"],
+.stDataFrameColumnFormattingMenu [role="menuitem"],
+.stDataFrameColumnVisibilityMenu [role="menuitem"],
+.stDataFrameButtonActionMenu [role="menuitem"],
+.stDataFrameStatisticsMenu,
+.stDataFrameStatisticsMenu *{
+  color:var(--aq-text)!important;
+}
+[data-testid="stDataFrame"] input,[data-testid="stDataEditor"] input{
+  color:#173b58!important;
+  -webkit-text-fill-color:#173b58!important;
+}
+[data-testid="stDataFrame"] input::placeholder,[data-testid="stDataEditor"] input::placeholder{
+  color:#617b8d!important;
+  -webkit-text-fill-color:#617b8d!important;
+  opacity:1!important;
+}
+
 /* Tables, forms and metric cards share the same quiet surface rhythm. */
 [data-testid="stDataFrame"]{box-shadow:0 7px 20px rgba(0,0,0,.05)!important}
 [data-testid="stMetric"]{min-height:104px!important;display:flex!important;flex-direction:column!important;justify-content:center!important}

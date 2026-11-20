@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
 
 from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe
 from components.display import friendly_datetime
 from components.navigation import staff_sidebar, require_staff
 from components.feedback import flash
@@ -37,7 +38,7 @@ rows = [{
     "Collection Point": o.get("collection_point") or "Not assigned",
     "Last Updated": friendly_datetime(o["updated_at"]),
 } for o in orders]
-st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+render_dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 order_map = {f"Order #{o['order_id']} · {o['customer_name']} · {o['status']}": o["order_id"] for o in orders}
 order_id = order_map[st.selectbox("Select Order", list(order_map))]

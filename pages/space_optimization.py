@@ -11,6 +11,7 @@ if str(PROJECT_DIR) not in sys.path:
 from bootstrap import bootstrap_app
 from components.cards import info_card
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe, render_data_editor
 from components.navigation import staff_sidebar, require_staff
 from components.feedback import flash
 from services.collection_point_service import list_lorry_delivery_collection_points
@@ -119,7 +120,7 @@ order_rows = [{
     "Required Boxes": int(o["required_boxes"]),
     "Estimated Weight": f"{float(o['estimated_weight']):g} kg",
 } for o in orders]
-selected_rows = st.data_editor(
+selected_rows = render_data_editor(
     pd.DataFrame(order_rows),
     use_container_width=True,
     hide_index=True,
@@ -209,7 +210,7 @@ if requirements:
         "The same label and customer name are shown again in the 3D Loading Visualization and Loading Sequence."
     )
     req_df = pd.DataFrame(box_rows)
-    st.dataframe(req_df, use_container_width=True, hide_index=True)
+    render_dataframe(req_df, use_container_width=True, hide_index=True)
 
     st.download_button(
         "Download Box Labels CSV",
@@ -265,7 +266,7 @@ if result and result.get("ui_signature") == current_signature:
             "Placed Size": f"{p['placed_length']:g} × {p['placed_width']:g} × {p['placed_height']:g} cm",
             "Loaded Weight": f"{p['loaded_weight']:.1f} kg",
         } for p in result["placements"]])
-        st.dataframe(preview, use_container_width=True, hide_index=True)
+        render_dataframe(preview, use_container_width=True, hide_index=True)
 
         b1, b2 = st.columns(2)
         with b1:

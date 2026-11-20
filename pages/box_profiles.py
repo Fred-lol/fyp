@@ -12,6 +12,7 @@ from bootstrap import bootstrap_app
 from components.cards import info_card
 from components.navigation import require_staff, staff_sidebar
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe
 from constants import BOX_STATUSES
 from services.box_service import (
     add_inventory,
@@ -330,7 +331,7 @@ with manage_tab:
         "update": ":material/edit:",
         "delete": ":material/delete:",
     } for box in boxes]
-    st.dataframe(
+    render_dataframe(
         pd.DataFrame(table_rows),
         use_container_width=True,
         hide_index=True,

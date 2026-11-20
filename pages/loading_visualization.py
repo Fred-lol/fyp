@@ -13,6 +13,7 @@ if str(PROJECT_DIR) not in sys.path:
 from bootstrap import bootstrap_app
 from components.cards import info_card
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe
 from components.navigation import staff_sidebar, require_staff
 from components.alert_theme import notification_css
 from components.feedback import flash
@@ -333,4 +334,4 @@ sequence_df = pd.DataFrame([{
     "Placed Size": f"{p['placed_length']:g} × {p['placed_width']:g} × {p['placed_height']:g} cm",
     "Weight": f"{p['loaded_weight']:.1f} kg",
 } for p in plan["placements"]])
-st.dataframe(sequence_df, use_container_width=True, hide_index=True)
+render_dataframe(sequence_df, use_container_width=True, hide_index=True)

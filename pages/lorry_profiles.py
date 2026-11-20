@@ -13,6 +13,7 @@ from components.cards import empty_state, metric_card
 from components.display import friendly_datetime
 from components.navigation import require_staff, staff_sidebar
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe
 from constants import LORRY_STATUSES
 from services.lorry_service import (
     MANUAL_LORRY_STATUSES,
@@ -236,7 +237,7 @@ with manage_tab:
             "update": ":material/edit:",
             "delete": ":material/delete:",
         } for row in rows]
-        st.dataframe(
+        render_dataframe(
             pd.DataFrame(table_rows), use_container_width=True, hide_index=True, key="lorry_profiles_table",
             column_config={
                 "update": st.column_config.ButtonColumn("Update", width="small", type="tertiary", help="Update this lorry", on_click=_edit_button_clicked, args=(rows,), key="lorry_update_click"),

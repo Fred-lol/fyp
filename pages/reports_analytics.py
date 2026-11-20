@@ -13,6 +13,7 @@ if str(PROJECT_DIR) not in sys.path:
 
 from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe
 from components.navigation import staff_sidebar, require_staff
 from components.display import friendly_datetime
 from services.optimization_service import get_plan, list_plans, saved_weight_utilization
@@ -71,7 +72,7 @@ def render_reports(plans):
             "Loaded Weight": f"{float(r['total_weight']):,.1f} kg",
             "Validation": r["validation_result"],
         } for r in reports]
-        st.dataframe(pd.DataFrame(report_rows), width="stretch", hide_index=True)
+        render_dataframe(pd.DataFrame(report_rows), width="stretch", hide_index=True)
 
         report_ids = [r["report_id"] for r in reports]
         default_report = st.session_state.get("selected_report_id")
@@ -114,7 +115,7 @@ def render_reports(plans):
                 "Customer": o["customer_name"],
                 "Seafood Weight": f"{float(o['seafood_weight_kg']):,.1f} kg",
             } for o in plan["orders"]])
-            st.dataframe(orders_df, width="stretch", hide_index=True)
+            render_dataframe(orders_df, width="stretch", hide_index=True)
 
         with right:
             st.subheader("Box Size Breakdown", anchor=False)
@@ -123,7 +124,7 @@ def render_reports(plans):
                 for name, qty in report["box_breakdown"].items()
             ])
             if not box_df.empty:
-                st.dataframe(box_df, width="stretch", hide_index=True)
+                render_dataframe(box_df, width="stretch", hide_index=True)
                 render_chart(bar_chart(box_df["Box Template"], box_df["Quantity"], "Boxes used", horizontal=True, counts=True), "report_boxes")
 
 

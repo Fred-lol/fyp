@@ -13,6 +13,7 @@ from components.cards import empty_state, metric_card
 from components.display import friendly_datetime
 from components.navigation import require_staff, staff_sidebar
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe
 from constants import ROLES, USER_STATUSES
 from services.user_service import delete_user_account, load_user_management, set_user_status
 
@@ -198,7 +199,7 @@ for user in rows:
         "delete": ":material/delete:",
     })
 
-st.dataframe(
+render_dataframe(
     pd.DataFrame(table_rows),
     use_container_width=True,
     hide_index=True,

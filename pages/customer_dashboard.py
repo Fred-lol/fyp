@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
 
 from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe
 from components.navigation import customer_sidebar
 from components.cards import metric_card, empty_state
 from components.display import friendly_datetime
@@ -80,7 +81,7 @@ else:
             }
         )
 
-    st.dataframe(
+    render_dataframe(
         pd.DataFrame(rows),
         use_container_width=True,
         hide_index=True,

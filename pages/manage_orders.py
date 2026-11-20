@@ -10,6 +10,7 @@ if str(PROJECT_DIR) not in sys.path:
 
 from bootstrap import bootstrap_app
 from components.theme import apply_theme, page_header
+from components.tables import render_dataframe
 from components.display import friendly_datetime
 from components.navigation import staff_sidebar, require_staff
 from constants import ORDER_STATUSES
@@ -93,7 +94,7 @@ summary_rows = [{
     "Collection Point": o.get("collection_point") or "Not assigned",
     "Updated": friendly_datetime(o["updated_at"]),
 } for o in orders]
-st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+render_dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
 
 st.subheader("Archived Order Details" if archived_view else "Order Details & Actions", anchor=False)
 order_map = {f"Order #{o['order_id']} · {o['customer_name']} · {float(o['total_weight_kg']):g} kg": o["order_id"] for o in orders}
