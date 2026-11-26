@@ -764,11 +764,19 @@ def recommend_box_combinations(order_id, limit=3):
         box_count = sum(quantities)
         if box_count <= 0:
             continue
+        if len(candidates) >= max(1, limit) and box_count > candidates[-1]["box_count"]:
+            continue
         total_capacity = sum(
             qty * float(b["max_seafood_weight_kg"])
             for qty, b in zip(quantities, templates)
         )
         if total_capacity + 1e-9 < total_weight:
+            continue
+        larger_score = -sum(qty * float(b["capacity_litre"] or 0) ** 2 for qty, b in zip(quantities, templates))
+        score = (box_count, round(total_capacity - total_weight, 6), larger_score)
+        # Keep only the requested best results. Do not build thousands of
+        # discarded dictionaries or sort the entire feasible search space.
+        if len(candidates) >= max(1, limit) and score >= candidates[-1]["_score"]:
             continue
         selected = []
         for qty, b in zip(quantities, templates):
@@ -781,8 +789,6 @@ def recommend_box_combinations(order_id, limit=3):
                     "capacity_per_box_kg": float(b["max_seafood_weight_kg"]),
                     "dimensions": f"{b['length']:g} × {b['width']:g} × {b['height']:g} cm",
                 })
-        # Larger boxes are preferred as a final tie-breaker.
-        larger_score = -sum(qty * float(b["capacity_litre"] or 0) ** 2 for qty, b in zip(quantities, templates))
         candidates.append({
             "boxes": sorted(selected, key=lambda x: x["capacity_litre"], reverse=True),
             "box_count": box_count,
@@ -792,7 +798,9 @@ def recommend_box_combinations(order_id, limit=3):
             "_score": (box_count, round(total_capacity - total_weight, 6), larger_score),
         })
 
-    candidates.sort(key=lambda c: c["_score"])
+        candidates.sort(key=lambda c: c["_score"])
+        del candidates[max(1, limit):]
+
     for c in candidates:
         c.pop("_score", None)
     return candidates[:limit]
@@ -1053,6 +1061,11 @@ def eligible_orders_for_optimization(collection_point_id=None):
         LEFT JOIN order_box_requirements r ON r.order_id=o.order_id
         WHERE o.status IN ({placeholders})
           AND COALESCE(o.collection_assignment,'') <> 'Local Pickup'
+          AND NOT EXISTS (
+              SELECT 1 FROM loading_plan_orders po
+              JOIN loading_plans p ON p.plan_id=po.plan_id
+              WHERE po.order_id=o.order_id AND p.status='Saved'
+          )
     """
     params = list(OPTIMIZATION_ELIGIBLE_STATUSES)
     if collection_point_id is not None:

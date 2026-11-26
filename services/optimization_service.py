@@ -212,6 +212,19 @@ def save_optimization(result, created_by, mark_loaded=False):
                 f"{current_lorry['status']}. Choose an available lorry."
             ), None
 
+        # Revalidate eligibility at the write boundary; another action may
+        # have cancelled, loaded, or assigned these orders since the preview.
+        eligible = conn.execute(
+            f"""SELECT order_id FROM seafood_orders
+                WHERE order_id IN ({marks}) AND status='Ready for Loading'
+                  AND COALESCE(collection_assignment,'') <> 'Local Pickup'
+                  AND NOT EXISTS (SELECT 1 FROM loading_plan_orders po
+                                  JOIN loading_plans p ON p.plan_id=po.plan_id
+                                  WHERE po.order_id=seafood_orders.order_id AND p.status='Saved')""",
+            order_ids,
+        ).fetchall()
+        if {int(row['order_id']) for row in eligible} != set(order_ids):
+            return False, "Loading plan not saved: one or more selected orders are no longer eligible or have already been assigned. Refresh Step 1 and select eligible orders again.", None
         if mark_loaded:
             for order_id in result["order_ids"]:
                 order = conn.execute(

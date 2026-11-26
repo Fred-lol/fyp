@@ -47,14 +47,28 @@ page_header(
     "Core Optimization",
 )
 
-points = list_lorry_delivery_collection_points("Available")
-if not points:
-    st.error("No lorry-delivery collection points are currently available.")
-    st.stop()
+eligible_orders = eligible_orders_for_optimization()
+counts = {}
+for order in eligible_orders:
+    point_id = order.get("collection_point_id")
+    if point_id is not None:
+        counts[int(point_id)] = counts.get(int(point_id), 0) + 1
+points = [p for p in list_lorry_delivery_collection_points("Available") if int(p["collection_point_id"]) in counts]
 
-st.markdown("## Step 1 — Select Collection Point")
-point_map = {f"{p['point_name']} · {p['city']}, {p['state']}": p for p in points}
-point_label = st.selectbox("Collection Point", list(point_map))
+st.markdown("## Step 1 ? Select Collection Point")
+if not points:
+    st.info("No collection points currently have orders ready for loading.")
+    st.stop()
+point_map = {f"{p['point_name']} ? {counts[int(p['collection_point_id'])]} orders": p for p in points}
+point_labels = list(point_map)
+selection_key = "optimization_collection_point"
+previous = st.session_state.get(selection_key)
+if previous not in point_labels:
+    if previous is not None:
+        st.session_state.pop(selection_key, None)
+        st.info("The selected collection point no longer has eligible orders. Choose an available location.")
+    st.session_state[selection_key] = point_labels[0]
+point_label = st.selectbox("Collection Point", point_labels, key=selection_key)
 point = point_map[point_label]
 
 st.divider()
