@@ -28,13 +28,35 @@ def test_cumulative_stack_load_rejects_three_equal_boxes():
 def test_compactness_measures_occupied_length_after_mirroring():
     lorry=dict(internal_length=500,internal_width=100,internal_height=100,max_weight=1000)
     p=[dict(x=450,y=0,z=0,placed_length=50,placed_width=40,placed_height=30,loaded_weight=20)]
-    assert _compactness_score(p,lorry)[1]==50*40*30
+    assert _compactness_score(p,lorry)[2]==50
 
 
-def test_deep_section_rank_prefers_safe_stack_over_long_floor():
+def test_floor_layout_preferred_when_stacking_is_unnecessary():
     lorry=dict(internal_length=500,internal_width=100,internal_height=100,max_weight=1000)
     def box(x,z):
         return dict(x=x,y=0,z=z,placed_length=50,placed_width=40,placed_height=30,loaded_weight=20)
     stacked=[box(450,0),box(450,30)]
     floor=[box(450,0),box(400,0)]
-    assert _compactness_score(stacked,lorry) < _compactness_score(floor,lorry)
+    assert _compactness_score(floor,lorry) < _compactness_score(stacked,lorry)
+
+
+def test_default_plan_fills_floor_rows_without_unnecessary_stacking():
+    lorry=dict(internal_length=200,internal_width=100,internal_height=100,max_weight=1000)
+    boxes=[dict(order_id=1,box_profile_id=1,box_instance=i,length=50,width=50,height=30,loaded_weight=20)
+           for i in range(1,7)]
+    result=generate_plan(lorry,boxes)
+    assert result['success'],result['message']
+    placements=result['placements']
+    assert all(p['z']==0 for p in placements)
+    assert sorted((p['x'],p['y']) for p in placements)==[(50,0),(50,50),(100,0),(100,50),(150,0),(150,50)]
+    assert validate_plan(placements,lorry,120,expected_boxes=boxes)[0]
+
+
+def test_stack_when_floor_is_full():
+    lorry=dict(internal_length=100,internal_width=100,internal_height=60,max_weight=1000)
+    boxes=[dict(order_id=1,box_profile_id=1,box_instance=i,length=50,width=50,height=30,loaded_weight=20)
+           for i in range(1,7)]
+    result=generate_plan(lorry,boxes)
+    assert result['success'],result['message']
+    assert sum(p['z']>0 for p in result['placements'])==2
+    assert validate_plan(result['placements'],lorry,120,expected_boxes=boxes)[0]

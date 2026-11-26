@@ -22,6 +22,10 @@ BASELINE_STRATEGIES = (
 )
 
 ENHANCED_STRATEGIES = (
+    ("footprint_first", "row_first"),
+    ("heavy_first", "row_first"),
+    ("wide_first", "row_first"),
+    ("largest_first", "row_first"),
     ("footprint_first", "section_first"),
     ("wide_first", "section_first"),
     ("longest_first", "section_first"),
@@ -160,6 +164,11 @@ def _placement_score(candidate, placements, lorry, strategy, moments):
         tie_breaker = (abs(center_y - float(lorry["internal_width"]) / 2), x + y)
     else:
         tie_breaker = (y, x)
+    if strategy == "row_first":
+        # Fill the current floor band across its width before opening a
+        # new depth band. Raised candidates are considered only after floors.
+        return (round(z, 6), round(far_x, 6), round(x, 6), round(y, 6),
+                -round(contact, 6), round(envelope, 6), round(balance, 6))
     if strategy == "section_first":
         return (round(far_x, 6), round(x, 6), round(z, 6), round(envelope, 6), -round(contact, 6), round(balance, 6))
     return (round(z, 6), round(envelope, 6), round(balance, 6), -round(contact, 6), *tie_breaker)
@@ -205,9 +214,18 @@ def _compactness_score(placements, lorry):
     far_z = max(item["z"] + item["placed_height"] for item in placements)
     center_x, center_y = center_of_mass_xy(placements)
     balance = abs(center_x - float(lorry["internal_length"]) / 2) + abs(center_y - float(lorry["internal_width"]) / 2)
-    # Prefer completing a short deep-end section over spreading along
-    # the floor. Only independently validated candidates reach this ranking.
-    return (round(far_x, 6), round(far_x * far_y * far_z, 6), round(far_z, 6), round(balance, 6), round(far_y, 6))
+    # A complete floor layout wins over an unnecessarily stacked layout.
+    # Among equally stacked layouts minimize the occupied floor envelope,
+    # then depth and center-of-mass deviation. Box volume is invariant: a
+    # different arrangement cannot change total volume utilization.
+    raised_volume = sum(volume(p["placed_length"], p["placed_width"], p["placed_height"])
+                        for p in placements if float(p["z"]) > 1e-7)
+    floor_area = sum(p["placed_length"] * p["placed_width"]
+                     for p in placements if float(p["z"]) <= 1e-7)
+    floor_gaps = max(0.0, far_x * far_y - floor_area)
+    return (round(raised_volume, 6), round(floor_gaps, 6), round(far_x, 6),
+            round(far_z, 6), round(balance, 6), round(far_y, 6))
+
 
 
 def _finalise_deep_loading_sequence(placements, lorry):
