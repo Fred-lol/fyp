@@ -144,7 +144,7 @@ def order_tracking(order_id: int, customer_id: int = Query(..., ge=1)):
             LEFT JOIN loading_plans p ON p.plan_id=po.plan_id
             LEFT JOIN lorry_profiles l ON l.lorry_id=p.lorry_id
             WHERE o.order_id=? AND o.customer_id=?
-            ORDER BY p.created_at DESC
+            ORDER BY p.created_at DESC, p.plan_id DESC
             LIMIT 1
             """,
             (order_id, customer_id),
@@ -165,7 +165,19 @@ def order_tracking(order_id: int, customer_id: int = Query(..., ge=1)):
                 (order["lorry_id"],),
             ).fetchone()
 
+    from services.tracking_assignment_service import get_lorry_assignment
     response = dict(order)
+    if response.get("lorry_id"):
+        assignment = get_lorry_assignment(response["lorry_id"])
+        if not assignment["valid"] or order_id not in assignment.get("order_ids", []):
+            response["lorry_id"] = None
+            response["plate_number"] = None
+            response["assignment_message"] = assignment["message"] or "No active delivery assignment for this order."
+            latest = None
+        else:
+            stop = assignment["stops"][0]
+            response.update(collection_point=stop["point_name"], destination_latitude=stop["latitude"],
+                            destination_longitude=stop["longitude"], destination_city=stop["city"], destination_state=stop["state"])
     response["location_available"] = latest is not None
     response["latest_location"] = dict(latest) if latest else None
     return response

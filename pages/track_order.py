@@ -176,7 +176,7 @@ if not ok:
     st.warning(data)
     st.stop()
 if not data.get("lorry_id"):
-    st.info("A lorry has not been assigned yet. Live tracking becomes available when the order is loaded.")
+    st.info(data.get("assignment_message") or "A lorry has not been assigned yet. Live tracking becomes available when the order is loaded.")
     st.stop()
 
 a, b, c = st.columns(3)

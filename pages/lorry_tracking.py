@@ -19,7 +19,7 @@ from bootstrap import bootstrap_app
 from components.alert_theme import notification_css
 from components.navigation import require_staff, staff_sidebar
 from components.theme import apply_theme, page_header
-from services.collection_point_service import list_lorry_delivery_collection_points
+from services.tracking_assignment_service import get_lorry_assignment
 from services.lorry_service import list_lorries
 
 
@@ -113,7 +113,11 @@ def _lorry_travel_minutes(route):
     return max(1, (float(route["distance_km"]) / LORRY_CRUISE_SPEED_KMH) * 60)
 
 
-def _start_simulation(lorry_id, destination, playback_multiplier, restart=False):
+def _start_simulation(lorry_id, destination, playback_multiplier, assignment, assignment_key, restart=False):
+    current_assignment = get_lorry_assignment(lorry_id)
+    if not current_assignment["valid"] or current_assignment != assignment:
+        st.session_state.tracking_message = ("error", current_assignment["message"] or "The loading assignment changed. Review it before starting simulation.")
+        return
     route = _road_route(LKIM_KUALA_PERLIS["latitude"], LKIM_KUALA_PERLIS["longitude"], float(destination["latitude"]), float(destination["longitude"]))
     travel_minutes = _lorry_travel_minutes(route)
     # The route is paced at a 55 km/h commercial-lorry baseline. Playback only
@@ -124,6 +128,7 @@ def _start_simulation(lorry_id, destination, playback_multiplier, restart=False)
         st.session_state.tracking_message = ("error", error)
         return
     st.session_state[_simulation_key(lorry_id)] = {
+        "assignment_key": assignment_key,
         "destination": destination,
         "route": route,
         "started_at_ms": round(time.time() * 1000),
@@ -261,19 +266,24 @@ lorry_by_id = {int(lorry["lorry_id"]): lorry for lorry in active_lorries}
 selected_lorry_id = st.selectbox("Active lorry", list(lorry_by_id), format_func=lambda lorry_id: f"{lorry_by_id[lorry_id]['plate_number']} — In Transit")
 selected_lorry = lorry_by_id[selected_lorry_id]
 
-points = list_lorry_delivery_collection_points("Available")
-if not points:
-    st.error("No destination collection point is available for simulation.")
+try:
+    assignment = get_lorry_assignment(selected_lorry_id)
+except Exception:
+    st.error("Unable to retrieve the saved loading assignment. Please try again.")
     st.stop()
-point_map = {f"{point['point_name']} · {point['city']}, {point['state']}": point for point in points}
-# Keep speed and destination changes in the browser until staff deliberately
-# starts or restarts the trip. This avoids a page rerun for every selection.
+for stop in assignment["stops"]:
+    st.text_input("Assigned Destination", value=f"{stop['point_name']} - {stop['city']}, {stop['state']}", disabled=True, key=f"assigned_destination_{selected_lorry_id}_{stop['collection_point_id']}")
+if not assignment["valid"]:
+    st.session_state.pop(_simulation_key(selected_lorry_id), None)
+    st.warning(assignment["message"])
+    st.stop()
+destination = assignment["stops"][0]
+assignment_key = (tuple(assignment["plan_ids"]), tuple(assignment["order_ids"]), destination["collection_point_id"], str(destination["latitude"]), str(destination["longitude"]))
+old_simulation = st.session_state.get(_simulation_key(selected_lorry_id))
+if old_simulation and old_simulation.get("assignment_key") != assignment_key:
+    st.session_state.pop(_simulation_key(selected_lorry_id), None)
 with st.form("simulation_controls", border=False):
-    destination_label = st.selectbox(
-        "Simulation destination", list(point_map), key=f"simulation_destination_{selected_lorry_id}"
-    )
     selected_speed_label = st.selectbox("Simulation speed", list(SIMULATION_SPEEDS), index=1)
-    destination = point_map[destination_label]
     selected_speed = SIMULATION_SPEEDS[selected_speed_label]
     preview_route = _road_route(
         LKIM_KUALA_PERLIS["latitude"], LKIM_KUALA_PERLIS["longitude"],
@@ -295,10 +305,10 @@ with st.form("simulation_controls", border=False):
         )
 
 if start_clicked:
-    _start_simulation(selected_lorry_id, destination, selected_speed)
+    _start_simulation(selected_lorry_id, destination, selected_speed, assignment, assignment_key)
     st.rerun()
 if restart_clicked:
-    _start_simulation(selected_lorry_id, destination, selected_speed, restart=True)
+    _start_simulation(selected_lorry_id, destination, selected_speed, assignment, assignment_key, restart=True)
     st.rerun()
 if message := st.session_state.pop("tracking_message", None):
     getattr(st, message[0])(message[1])
