@@ -34,8 +34,8 @@ def test_multi_start_horizontal_search_solves_case_canonical_baseline_cannot():
     assert result["placements"][0]["placed_width"] == 70
     assert result["placements"][0]["placed_height"] == 30
     assert result["metrics"]["baseline_candidate_valid"] is False
-    assert "multi-start geometric heuristic" in result["metrics"]["search_method"]
-    assert "no machine learning" in result["metrics"]["search_method"]
+    assert result["metrics"]["ml_inference_used"] is True
+    assert "trained ridge" in result["metrics"]["search_method"]
     assert validate_plan(result["placements"], truck, 20, expected_boxes=required)[0]
 
 

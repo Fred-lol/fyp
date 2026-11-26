@@ -1,0 +1,430 @@
+{
+  "scenarios": 20,
+  "baseline_valid": 17,
+  "ml_valid": 17,
+  "better": 0,
+  "equal": 17,
+  "worse": 0,
+  "baseline_mean_seconds": 0.09744435882352906,
+  "ml_mean_seconds": 0.09730740588234124,
+  "results": [
+    {
+      "seed": 80,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.29033499999968626,
+      "ml_seconds": 0.283802599999035,
+      "baseline_score": [
+        0,
+        5525.0,
+        245.0,
+        40.0,
+        50.274772,
+        210.0
+      ],
+      "ml_score": [
+        0,
+        5525.0,
+        245.0,
+        40.0,
+        50.274772,
+        210.0
+      ]
+    },
+    {
+      "seed": 81,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.10871210000004794,
+      "ml_seconds": 0.10899439999957394,
+      "baseline_score": [
+        0,
+        5550.0,
+        415.0,
+        40.0,
+        57.46992,
+        90.0
+      ],
+      "ml_score": [
+        0,
+        5550.0,
+        415.0,
+        40.0,
+        57.46992,
+        90.0
+      ]
+    },
+    {
+      "seed": 82,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.048731999999290565,
+      "ml_seconds": 0.048940200000288314,
+      "baseline_score": [
+        0,
+        3025.0,
+        105.0,
+        40.0,
+        56.778011,
+        210.0
+      ],
+      "ml_score": [
+        0,
+        3025.0,
+        105.0,
+        40.0,
+        56.778011,
+        210.0
+      ]
+    },
+    {
+      "seed": 83,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.030288900001323782,
+      "ml_seconds": 0.03068139999959385,
+      "baseline_score": [
+        0,
+        900.0,
+        260.0,
+        40.0,
+        184.729299,
+        50.0
+      ],
+      "ml_score": [
+        0,
+        900.0,
+        260.0,
+        40.0,
+        184.729299,
+        50.0
+      ]
+    },
+    {
+      "seed": 84,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.012674100000367616,
+      "ml_seconds": 0.012423499998476473,
+      "baseline_score": [
+        0,
+        325.0,
+        265.0,
+        40.0,
+        51.131122,
+        50.0
+      ],
+      "ml_score": [
+        0,
+        325.0,
+        265.0,
+        40.0,
+        51.131122,
+        50.0
+      ]
+    },
+    {
+      "seed": 85,
+      "baseline_success": false,
+      "ml_success": false,
+      "baseline_seconds": null,
+      "ml_seconds": null,
+      "baseline_score": null,
+      "ml_score": null
+    },
+    {
+      "seed": 86,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.015468499999769847,
+      "ml_seconds": 0.014323800000056508,
+      "baseline_score": [
+        0,
+        575.0,
+        80.0,
+        40.0,
+        60.428742,
+        120.0
+      ],
+      "ml_score": [
+        0,
+        575.0,
+        80.0,
+        40.0,
+        60.428742,
+        120.0
+      ]
+    },
+    {
+      "seed": 87,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.017796600001020124,
+      "ml_seconds": 0.01800860000003013,
+      "baseline_score": [
+        0,
+        1550.0,
+        130.0,
+        35.0,
+        44.548193,
+        110.0
+      ],
+      "ml_score": [
+        0,
+        1550.0,
+        130.0,
+        35.0,
+        44.548193,
+        110.0
+      ]
+    },
+    {
+      "seed": 88,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.25800510000044596,
+      "ml_seconds": 0.26001670000005106,
+      "baseline_score": [
+        0,
+        3825.0,
+        390.0,
+        40.0,
+        46.387026,
+        120.0
+      ],
+      "ml_score": [
+        0,
+        3825.0,
+        390.0,
+        40.0,
+        46.387026,
+        120.0
+      ]
+    },
+    {
+      "seed": 89,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.05074570000033418,
+      "ml_seconds": 0.0511716000000888,
+      "baseline_score": [
+        0,
+        3425.0,
+        135.0,
+        40.0,
+        20.872789,
+        180.0
+      ],
+      "ml_score": [
+        0,
+        3425.0,
+        135.0,
+        40.0,
+        20.872789,
+        180.0
+      ]
+    },
+    {
+      "seed": 90,
+      "baseline_success": false,
+      "ml_success": false,
+      "baseline_seconds": null,
+      "ml_seconds": null,
+      "baseline_score": null,
+      "ml_score": null
+    },
+    {
+      "seed": 91,
+      "baseline_success": false,
+      "ml_success": false,
+      "baseline_seconds": null,
+      "ml_seconds": null,
+      "baseline_score": null,
+      "ml_score": null
+    },
+    {
+      "seed": 92,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.21768489999885787,
+      "ml_seconds": 0.2189754000009998,
+      "baseline_score": [
+        0,
+        3225.0,
+        405.0,
+        40.0,
+        75.172179,
+        90.0
+      ],
+      "ml_score": [
+        0,
+        3225.0,
+        405.0,
+        40.0,
+        75.172179,
+        90.0
+      ]
+    },
+    {
+      "seed": 93,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.019569500000216067,
+      "ml_seconds": 0.01972860000023502,
+      "baseline_score": [
+        0,
+        775.0,
+        255.0,
+        40.0,
+        167.51453,
+        50.0
+      ],
+      "ml_score": [
+        0,
+        775.0,
+        255.0,
+        40.0,
+        167.51453,
+        50.0
+      ]
+    },
+    {
+      "seed": 94,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.03649869999935618,
+      "ml_seconds": 0.03582759999881091,
+      "baseline_score": [
+        204750.0,
+        1975.0,
+        190.0,
+        75.0,
+        17.157213,
+        100.0
+      ],
+      "ml_score": [
+        204750.0,
+        1975.0,
+        190.0,
+        75.0,
+        17.157213,
+        100.0
+      ]
+    },
+    {
+      "seed": 95,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.028454799999963143,
+      "ml_seconds": 0.028909799999382813,
+      "baseline_score": [
+        0,
+        3925.0,
+        70.0,
+        35.0,
+        78.673724,
+        200.0
+      ],
+      "ml_score": [
+        0,
+        3925.0,
+        70.0,
+        35.0,
+        78.673724,
+        200.0
+      ]
+    },
+    {
+      "seed": 96,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.07573839999895426,
+      "ml_seconds": 0.07479100000091421,
+      "baseline_score": [
+        0,
+        2400.0,
+        275.0,
+        40.0,
+        68.986816,
+        85.0
+      ],
+      "ml_score": [
+        0,
+        2400.0,
+        275.0,
+        40.0,
+        68.986816,
+        85.0
+      ]
+    },
+    {
+      "seed": 97,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.2562521999989258,
+      "ml_seconds": 0.2576139000011608,
+      "baseline_score": [
+        105000.0,
+        6225.0,
+        200.0,
+        55.0,
+        8.297372,
+        210.0
+      ],
+      "ml_score": [
+        105000.0,
+        6225.0,
+        200.0,
+        55.0,
+        8.297372,
+        210.0
+      ]
+    },
+    {
+      "seed": 98,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.06605000000126893,
+      "ml_seconds": 0.06374200000027486,
+      "baseline_score": [
+        0,
+        3025.0,
+        285.0,
+        40.0,
+        15.1015,
+        95.0
+      ],
+      "ml_score": [
+        0,
+        3025.0,
+        285.0,
+        40.0,
+        15.1015,
+        95.0
+      ]
+    },
+    {
+      "seed": 99,
+      "baseline_success": true,
+      "ml_success": true,
+      "baseline_seconds": 0.1235476000001654,
+      "ml_seconds": 0.1262748000008287,
+      "baseline_score": [
+        0,
+        4800.0,
+        175.0,
+        40.0,
+        146.255981,
+        210.0
+      ],
+      "ml_score": [
+        0,
+        4800.0,
+        175.0,
+        40.0,
+        146.255981,
+        210.0
+      ]
+    }
+  ]
+}

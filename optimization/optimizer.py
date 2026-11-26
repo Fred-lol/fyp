@@ -1,6 +1,6 @@
 """Deterministic multi-start 3D packing with an independently checked fallback.
 
-This is a geometric heuristic, not machine learning.  The original first-fit
+A trained ridge model ranks geometric search strategies for each new load.  The original first-fit
 packing pass is retained as the fallback; the enhanced search compares legal
 horizontal orientations and scored candidate placements under a fixed time
 budget.  Every candidate is independently validated before it can succeed.
@@ -273,7 +273,7 @@ def _failure(message, *, placements=None):
     return {"success": False, "message": message, "placements": placements or []}
 
 
-def generate_plan(lorry, boxes, *, time_limit_seconds=8.0):
+def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True):
     """Compare multi-start scored layouts with the preserved verified baseline."""
     started = perf_counter()
     boxes = list(boxes or [])
@@ -326,7 +326,9 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0):
     enhanced_count = 0
     enhanced_attempts = 0
     timed_out = False
-    for order_strategy, position_strategy in ENHANCED_STRATEGIES:
+    from optimization.ml_ranker import rank_strategies
+    strategies, ml_used = rank_strategies(lorry, boxes, ENHANCED_STRATEGIES) if use_ml else (ENHANCED_STRATEGIES, False)
+    for order_strategy, position_strategy in strategies:
         if perf_counter() >= deadline:
             timed_out = True
             break
@@ -342,6 +344,13 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0):
         if valid:
             enhanced_count += 1
             candidates.append((_compactness_score(candidate, lorry), "enhanced", order_strategy, position_strategy, candidate))
+            # Compare the opposite lateral row direction at the same scale.
+            mirrored = [dict(p, y=float(lorry["internal_width"])-p["y"]-p["placed_width"]) for p in candidate]
+            mirrored.sort(key=loading_sequence_key)
+            for number, p in enumerate(mirrored, 1):
+                p["sequence_number"] = number
+            if validate_plan(mirrored, lorry, total_weight, expected_boxes=boxes)[0]:
+                candidates.append((_compactness_score(mirrored, lorry), "enhanced", order_strategy, position_strategy, mirrored))
 
     if not candidates:
         if timed_out:
@@ -380,7 +389,10 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0):
             "center_of_mass_x": center_x,
             "center_of_mass_y": center_y,
             "optimizer_strategy": f"{method} / {order_strategy.replace('_', '-')} / {position_strategy.replace('_', '-')}",
-            "search_method": "deterministic multi-start geometric heuristic; no machine learning",
+            "search_method": "trained ridge strategy ranking with validated geometric search" if ml_used else "deterministic multi-start geometric heuristic fallback",
+            "ml_inference_used": ml_used,
+            "ml_model_version": 1 if ml_used else None,
+            "first_search_strategy": list(strategies[0]),
             "baseline_candidate_valid": baseline_placements is not None,
             "baseline_score": baseline_score,
             "selected_score": score,
