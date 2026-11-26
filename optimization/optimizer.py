@@ -22,6 +22,9 @@ BASELINE_STRATEGIES = (
 )
 
 ENHANCED_STRATEGIES = (
+    ("footprint_first", "section_first"),
+    ("wide_first", "section_first"),
+    ("longest_first", "section_first"),
     ("largest_first", "section_first"),
     ("heavy_first", "section_first"),
     ("largest_first", "balanced"),
@@ -202,7 +205,9 @@ def _compactness_score(placements, lorry):
     far_z = max(item["z"] + item["placed_height"] for item in placements)
     center_x, center_y = center_of_mass_xy(placements)
     balance = abs(center_x - float(lorry["internal_length"]) / 2) + abs(center_y - float(lorry["internal_width"]) / 2)
-    return (round(far_x * far_y * far_z, 6), round(far_z, 6), round(balance, 6), round(far_y, 6), round(far_x, 6))
+    # Prefer completing a short deep-end section over spreading along
+    # the floor. Only independently validated candidates reach this ranking.
+    return (round(far_x, 6), round(far_x * far_y * far_z, 6), round(far_z, 6), round(balance, 6), round(far_y, 6))
 
 
 def _finalise_deep_loading_sequence(placements, lorry):

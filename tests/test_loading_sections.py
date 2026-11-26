@@ -28,4 +28,13 @@ def test_cumulative_stack_load_rejects_three_equal_boxes():
 def test_compactness_measures_occupied_length_after_mirroring():
     lorry=dict(internal_length=500,internal_width=100,internal_height=100,max_weight=1000)
     p=[dict(x=450,y=0,z=0,placed_length=50,placed_width=40,placed_height=30,loaded_weight=20)]
-    assert _compactness_score(p,lorry)[0]==50*40*30
+    assert _compactness_score(p,lorry)[1]==50*40*30
+
+
+def test_deep_section_rank_prefers_safe_stack_over_long_floor():
+    lorry=dict(internal_length=500,internal_width=100,internal_height=100,max_weight=1000)
+    def box(x,z):
+        return dict(x=x,y=0,z=z,placed_length=50,placed_width=40,placed_height=30,loaded_weight=20)
+    stacked=[box(450,0),box(450,30)]
+    floor=[box(450,0),box(400,0)]
+    assert _compactness_score(stacked,lorry) < _compactness_score(floor,lorry)
