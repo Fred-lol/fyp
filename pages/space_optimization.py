@@ -55,11 +55,11 @@ for order in eligible_orders:
         counts[int(point_id)] = counts.get(int(point_id), 0) + 1
 points = [p for p in list_lorry_delivery_collection_points("Available") if int(p["collection_point_id"]) in counts]
 
-st.markdown("## Step 1 ? Select Collection Point")
+st.markdown("## Step 1 — Select Collection Point")
 if not points:
     st.info("No collection points currently have orders ready for loading.")
     st.stop()
-point_map = {f"{p['point_name']} ? {counts[int(p['collection_point_id'])]} orders": p for p in points}
+point_map = {p["point_name"]: p for p in points}
 point_labels = list(point_map)
 selection_key = "optimization_collection_point"
 previous = st.session_state.get(selection_key)
