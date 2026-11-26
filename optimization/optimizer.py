@@ -5,6 +5,7 @@ packing pass is retained as the fallback; the enhanced search compares legal
 horizontal orientations and scored candidate placements under a fixed time
 budget.  Every candidate is independently validated before it can succeed.
 """
+import logging
 from math import isfinite
 from time import perf_counter
 
@@ -55,6 +56,45 @@ def _candidate_positions(placements, strategy):
     if strategy == "balanced":
         return sorted(candidates, key=lambda point: (point[2], point[0] + point[1], point[1], point[0]))
     return sorted(candidates, key=lambda point: (point[2], point[1], point[0]))
+
+
+def _floor_contact_positions(placements, lorry, dimensions):
+    """Project face alignments onto the floor, including opposite face fits.
+
+    The old three-corner generator cannot see cavities whose x and y edges
+    come from different boxes, or positions aligned to a far face.
+    """
+    length, width, _ = dimensions
+    xs, ys = {0.0}, {0.0}
+    for p in placements:
+        for face in (p["x"], p["x"] + p["placed_length"]):
+            xs.update((face, face-length))
+        for face in (p["y"], p["y"] + p["placed_width"]):
+            ys.update((face, face-width))
+    xs = sorted(x for x in xs if 0 <= x <= float(lorry["internal_length"])-length+1e-9)
+    ys = sorted(y for y in ys if 0 <= y <= float(lorry["internal_width"])-width+1e-9)
+    return ((x,y,0.0) for x in xs for y in ys)
+
+
+def gap_measurements(placements, lorry):
+    """Exact floor-row gaps from an x-sweep, distinct from spare cargo space.
+
+    Row gaps are empty y intervals between floor boxes in the same x slice;
+    they exclude outer margins and are not a guarantee of load restraint.
+    """
+    floor = [p for p in placements if p["z"] <= 1e-7]
+    edges = sorted({v for p in floor for v in (p["x"],p["x"]+p["placed_length"])})
+    gaps = 0.0
+    for a,b in zip(edges,edges[1:]):
+        mid=(a+b)/2
+        intervals=sorted((p["y"],p["y"]+p["placed_width"]) for p in floor if p["x"] <= mid < p["x"]+p["placed_length"])
+        if intervals:
+            occupied=sum(end-start for start,end in intervals)
+            gaps+=(b-a)*max(0.0,intervals[-1][1]-intervals[0][0]-occupied)
+    length=max(p["x"]+p["placed_length"] for p in placements)-min(p["x"] for p in placements)
+    return {"internal_floor_row_gap_cm2": round(gaps,6), "occupied_length_cm": round(length,6),
+            "unused_lorry_volume_cm3": float(lorry["internal_length"])*float(lorry["internal_width"])*float(lorry["internal_height"])-sum(volume(p["placed_length"],p["placed_width"],p["placed_height"]) for p in placements),
+            "cargo_restraint_review_required": True}
 
 
 def _ordered_boxes(boxes, strategy):
@@ -167,14 +207,13 @@ def _placement_score(candidate, placements, lorry, strategy, moments):
     if strategy == "row_first":
         # Fill the current floor band across its width before opening a
         # new depth band. Raised candidates are considered only after floors.
-        return (round(z, 6), round(far_x, 6), round(x, 6), round(y, 6),
-                -round(contact, 6), round(envelope, 6), round(balance, 6))
+        return (round(z, 6), round(far_x, 6), round(x, 6), round(y, 6), -round(contact, 6), round(envelope, 6), round(balance, 6))
     if strategy == "section_first":
         return (round(far_x, 6), round(x, 6), round(z, 6), round(envelope, 6), -round(contact, 6), round(balance, 6))
     return (round(z, 6), round(envelope, 6), round(balance, 6), -round(contact, 6), *tie_breaker)
 
 
-def _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, deadline):
+def _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, deadline, project_faces=True):
     """Best-scored feasible placement for each box in one deterministic start."""
     placements = []
     for box in _ordered_boxes(boxes, order_strategy):
@@ -190,15 +229,18 @@ def _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, deadlin
         }
         best = None
         best_score = None
-        for position in _candidate_positions(placements, position_strategy):
-            if perf_counter() >= deadline:
-                return None
-            for dimensions in orientations(box["length"], box["width"], box["height"]):
+        for dimensions in orientations(box["length"], box["width"], box["height"]):
+            positions = set(_candidate_positions(placements, position_strategy))
+            if project_faces:
+                positions.update(_floor_contact_positions(placements, lorry, dimensions))
+            for position in sorted(positions, key=lambda v:(v[2],v[0],v[1])):
+                if perf_counter() >= deadline:
+                    return None
                 candidate = _make_placement(box, position, dimensions)
                 if (inside_lorry(candidate, lorry)
                         and not any(boxes_overlap(candidate, existing) for existing in placements)
                         and fully_supported(candidate, placements)
-                    and stack_loads_valid([*placements, candidate])):
+                        and stack_loads_valid([*placements, candidate])):
                     score = _placement_score(candidate, placements, lorry, position_strategy, moments)
                     if best_score is None or score < best_score:
                         best, best_score = candidate, score
@@ -210,7 +252,7 @@ def _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, deadlin
 
 def _compactness_score(placements, lorry):
     far_x = max(item["x"] + item["placed_length"] for item in placements) - min(item["x"] for item in placements)
-    far_y = max(item["y"] + item["placed_width"] for item in placements)
+    far_y = max(item["y"] + item["placed_width"] for item in placements) - min(item["y"] for item in placements)
     far_z = max(item["z"] + item["placed_height"] for item in placements)
     center_x, center_y = center_of_mass_xy(placements)
     balance = abs(center_x - float(lorry["internal_length"]) / 2) + abs(center_y - float(lorry["internal_width"]) / 2)
@@ -224,6 +266,7 @@ def _compactness_score(placements, lorry):
                      for p in placements if float(p["z"]) <= 1e-7)
     floor_gaps = max(0.0, far_x * far_y - floor_area)
     return (round(raised_volume, 6), round(floor_gaps, 6), round(far_x, 6),
+            round(gap_measurements(placements, lorry)["internal_floor_row_gap_cm2"], 6),
             round(far_z, 6), round(balance, 6), round(far_y, 6))
 
 
@@ -333,6 +376,11 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True):
             timed_out = True
             break
         enhanced_attempts += 1
+        legacy = _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, deadline, project_faces=False)
+        if legacy:
+            _finalise_deep_loading_sequence(legacy, lorry)
+            if validate_plan(legacy, lorry, total_weight, expected_boxes=boxes)[0]:
+                candidates.append((_compactness_score(legacy, lorry), "legacy-search", order_strategy, position_strategy, legacy))
         candidate = _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, deadline)
         if candidate is None:
             timed_out = perf_counter() >= deadline
@@ -369,6 +417,10 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True):
     weight_utilization = utilization_percent(total_weight, float(lorry["max_weight"]))
     center_x, center_y = center_of_mass_xy(placements)
     elapsed = perf_counter() - started
+    logging.getLogger(__name__).info(
+        "optimizer=projected-face-search-v2 ml_inference=%s selected=%s/%s/%s seconds=%.4f gaps=%s",
+        ml_used, method, order_strategy, position_strategy, elapsed, gap_measurements(placements, lorry),
+    )
     if method == "baseline" and timed_out:
         message = "Enhanced search reached its time limit; the original baseline layout passed independent validation and was selected."
     else:
@@ -378,6 +430,8 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True):
         "message": message,
         "placements": placements,
         "metrics": {
+            **gap_measurements(placements, lorry),
+            "optimizer_version": "projected-face-search-v2",
             "total_boxes": len(placements),
             "lorry_volume": lorry_volume,
             "used_volume": used_volume,

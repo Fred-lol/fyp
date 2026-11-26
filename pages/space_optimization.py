@@ -289,7 +289,7 @@ if result and result.get("ui_signature") == current_signature:
                     regenerated = preview_optimization(lorry["lorry_id"], selected_orders)
                     regenerated["ui_signature"] = [lorry["lorry_id"], sorted(selected_orders)]
                 if regenerated.get("success") and _placement_signature(regenerated) == _placement_signature(result):
-                    st.session_state.optimization_preview = result
+                    st.session_state.optimization_preview = regenerated
                     flash("info", "This is already the best valid loading plan. No changes were needed.")
                 elif regenerated.get("success"):
                     st.session_state.optimization_preview = regenerated

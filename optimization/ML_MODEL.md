@@ -9,3 +9,7 @@ The checked-in JSON artifact contains only coefficients and metadata, never exec
 Evaluation is recorded in ml_evaluation.json. On held-out scenarios both modes found 17/20 valid layouts, with equal compactness on all 17. Three scenarios yielded no validated complete layout in either mode. Mean successful-run times were approximately 0.097 seconds each. These results do not demonstrate improved final packing quality; full search often visits all strategies. The learned first-choice mean relative rank was 0.154 versus 0.242 for the fixed first strategy. Larger and production-like workloads need further evaluation.
 
 No optimality or zero-gap guarantee is made. Deployment and live inference must be verified separately; repository push and an HTTP health response do not establish the deployed commit.
+
+## Projected-face search update
+
+The candidate generator now projects faces from different boxes onto the floor and includes opposite-face alignment. The final score includes measured between-box floor-row gaps, and lateral bounding width is translation-invariant. Previous search candidates remain available for comparison. The model was retrained for the revised search (held-out first-choice rank 0.150 versus 0.175 fixed-first). See gap_evaluation.json for before/after coordinates, scores, methods, timing and exact floor-row gap areas on synthetic scenarios. These are not measurements of the user's unavailable Supabase plan. Restraint review remains necessary even when the measured row-gap area is zero; this is not a dynamics/safety certification.
