@@ -125,7 +125,7 @@ def test_capacity_and_impossible_mixed_dimensions_fail_with_specific_reason():
 
     impossible = generate_plan(lorry(100, 100, 30), [box(1, 60, 60, 30), box(2, 60, 60, 30)])
     assert not impossible["success"]
-    assert "cannot be arranged safely" in impossible["message"]
+    assert "No complete safe arrangement" in impossible["message"]
 
 
 def test_expected_workload_finishes_within_ten_seconds():

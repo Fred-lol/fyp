@@ -12,6 +12,7 @@ from time import perf_counter
 from optimization.constraints import orientations, fully_supported, loading_sequence_key, stack_loads_valid
 from optimization.validation import boxes_overlap, inside_lorry, validate_plan
 from optimization.scoring import volume, utilization_percent, center_of_mass_xy
+from optimization.cavities import internal_gaps, lateral_contact
 
 
 BASELINE_STRATEGIES = (
@@ -256,18 +257,14 @@ def _compactness_score(placements, lorry):
     far_z = max(item["z"] + item["placed_height"] for item in placements)
     center_x, center_y = center_of_mass_xy(placements)
     balance = abs(center_x - float(lorry["internal_length"]) / 2) + abs(center_y - float(lorry["internal_width"]) / 2)
-    # A complete floor layout wins over an unnecessarily stacked layout.
-    # Among equally stacked layouts minimize the occupied floor envelope,
-    # then depth and center-of-mass deviation. Box volume is invariant: a
-    # different arrangement cannot change total volume utilization.
+    # Three-dimensional internal cavities dominate. Among gap-equivalent
+    # candidates prefer the floor, then side contact and compact footprint.
     raised_volume = sum(volume(p["placed_length"], p["placed_width"], p["placed_height"])
                         for p in placements if float(p["z"]) > 1e-7)
-    floor_area = sum(p["placed_length"] * p["placed_width"]
-                     for p in placements if float(p["z"]) <= 1e-7)
-    floor_gaps = max(0.0, far_x * far_y - floor_area)
-    return (round(raised_volume, 6), round(floor_gaps, 6), round(far_x, 6),
-            round(gap_measurements(placements, lorry)["internal_floor_row_gap_cm2"], 6),
-            round(far_z, 6), round(balance, 6), round(far_y, 6))
+    return (internal_gaps(placements)["internal_gap_volume_cm3"],
+            round(raised_volume,6), -lateral_contact(placements),
+            round(far_x*far_y,6), round(far_x,6), round(far_z,6), round(balance,6))
+
 
 
 
@@ -366,24 +363,25 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True, refine=T
 
     search_budget = min(max(float(time_limit_seconds), 0.0), 8.0)
     deadline = started + search_budget
+    heuristic_deadline = deadline - min(2.5, search_budget * 0.4) if refine else deadline
     enhanced_count = 0
     enhanced_attempts = 0
     timed_out = False
     from optimization.ml_ranker import rank_strategies
     strategies, ml_used = rank_strategies(lorry, boxes, ENHANCED_STRATEGIES) if use_ml else (ENHANCED_STRATEGIES, False)
     for order_strategy, position_strategy in strategies:
-        if perf_counter() >= deadline:
+        if perf_counter() >= heuristic_deadline:
             timed_out = True
             break
         enhanced_attempts += 1
-        legacy = _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, deadline, project_faces=False)
+        legacy = _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, heuristic_deadline, project_faces=False)
         if legacy:
             _finalise_deep_loading_sequence(legacy, lorry)
             if validate_plan(legacy, lorry, total_weight, expected_boxes=boxes)[0]:
                 candidates.append((_compactness_score(legacy, lorry), "legacy-search", order_strategy, position_strategy, legacy))
-        candidate = _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, deadline)
+        candidate = _pack_enhanced_once(lorry, boxes, order_strategy, position_strategy, heuristic_deadline)
         if candidate is None:
-            timed_out = perf_counter() >= deadline
+            timed_out = perf_counter() >= heuristic_deadline
             if timed_out:
                 break
             continue
@@ -400,11 +398,20 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True, refine=T
             if validate_plan(mirrored, lorry, total_weight, expected_boxes=boxes)[0]:
                 candidates.append((_compactness_score(mirrored, lorry), "enhanced", order_strategy, position_strategy, mirrored))
 
+    backtracking_stats = {"backtracking_nodes": 0, "backtracking_complete": 0}
+    if refine and perf_counter() < deadline:
+        from optimization.backtracking import repack
+        alternatives, backtracking_stats = repack(
+            lorry, boxes, _compactness_score, min(deadline, perf_counter()+1.8))
+        for alternative in alternatives:
+            candidates.append((_compactness_score(alternative,lorry), "beam-repacking",
+                               "adaptive-order", "face-contact", alternative))
+
     if not candidates:
         if timed_out:
             reason = "The enhanced search reached its time limit and no complete baseline layout passed validation."
         else:
-            reason = "The selected boxes cannot be arranged safely inside this lorry. Their dimensions or safe stacking requirements do not form a valid complete 3D layout. Choose a larger lorry or split the orders."
+            reason = "No complete safe arrangement was found within the bounded search. Choose a larger lorry or split the orders. This search does not prove that every possible arrangement is impossible."
         return _failure(reason)
 
     score, method, order_strategy, position_strategy, placements = min(candidates, key=lambda item: item[0])
@@ -415,9 +422,7 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True, refine=T
         refined, refinement_stats = refine_plan(
             placements, lorry, boxes, _compactness_score, min(deadline, perf_counter()+2.0),
             protected_metrics=lambda p,l: (
-                gap_measurements(p,l)["internal_floor_row_gap_cm2"],
-                gap_measurements(p,l)["occupied_length_cm"],
-                sum(item["z"] > 1e-7 for item in p),
+                internal_gaps(p)["internal_gap_volume_cm3"],
                 float(l["internal_length"])-max(item["x"]+item["placed_length"] for item in p),
             ),
         )
@@ -434,14 +439,18 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True, refine=T
     weight_utilization = utilization_percent(total_weight, float(lorry["max_weight"]))
     center_x, center_y = center_of_mass_xy(placements)
     elapsed = perf_counter() - started
+    cavity_metrics = internal_gaps(placements, include_regions=True)
     logging.getLogger(__name__).info(
-        "optimizer=projected-face-refinement-v3 ml_inference=%s selected=%s/%s/%s seconds=%.4f gaps=%s",
-        ml_used, method, order_strategy, position_strategy, elapsed, gap_measurements(placements, lorry),
+        "optimizer=cavity-first-backtracking-v4 ml_inference=%s selected=%s/%s/%s seconds=%.4f internal_gap_cm3=%s",
+        ml_used, method, order_strategy, position_strategy, elapsed, cavity_metrics["internal_gap_volume_cm3"],
     )
     if method == "baseline" and timed_out:
         message = "Enhanced search reached its time limit; the original baseline layout passed independent validation and was selected."
     else:
-        message = "Best complete loading arrangement selected from validated baseline and multi-start horizontal search."
+        message = "Best complete loading arrangement selected from the validated alternatives."
+    if cavity_metrics["internal_gap_volume_cm3"] > 1e-7:
+        message += (f" Measured internal clearance: {cavity_metrics['internal_gap_volume_cm3'] / 1000:,.2f} litres. "
+                    "Remaining gaps require cargo restraint review; global optimality is not proven.")
     return {
         "success": True,
         "message": message,
@@ -449,9 +458,13 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True, refine=T
         "metrics": {
             **gap_measurements(placements, lorry),
             **refinement_stats,
+            **backtracking_stats,
+            **cavity_metrics,
+            "optimality_proven": False,
+            "lateral_face_contact_cm2": lateral_contact(placements),
             "pre_refinement_score": initial_score,
             "stacked_box_count": sum(p["z"] > 1e-7 for p in placements),
-            "optimizer_version": "projected-face-refinement-v3",
+            "optimizer_version": "cavity-first-backtracking-v4",
             "total_boxes": len(placements),
             "lorry_volume": lorry_volume,
             "used_volume": used_volume,

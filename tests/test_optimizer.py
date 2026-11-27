@@ -43,6 +43,6 @@ class OptimizerTests(unittest.TestCase):
                   "length": 110.0, "width": 20.0, "height": 20.0, "loaded_weight": 20.0}]
         result = generate_plan(lorry, boxes)
         self.assertFalse(result["success"])
-        self.assertIn("cannot be arranged safely", result["message"])
+        self.assertIn("No complete safe arrangement", result["message"])
 
 if __name__ == "__main__": unittest.main()

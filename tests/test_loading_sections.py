@@ -28,7 +28,7 @@ def test_cumulative_stack_load_rejects_three_equal_boxes():
 def test_compactness_measures_occupied_length_after_mirroring():
     lorry=dict(internal_length=500,internal_width=100,internal_height=100,max_weight=1000)
     p=[dict(x=450,y=0,z=0,placed_length=50,placed_width=40,placed_height=30,loaded_weight=20)]
-    assert _compactness_score(p,lorry)[2]==50
+    assert _compactness_score(p,lorry)[4]==50
 
 
 def test_floor_layout_preferred_when_stacking_is_unnecessary():

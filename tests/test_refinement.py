@@ -4,11 +4,12 @@ import pytest
 from optimization.optimizer import generate_plan, _make_placement, _compactness_score, gap_measurements
 from optimization.refinement import refine_plan, _sequence
 from optimization.validation import validate_plan
+from optimization.cavities import internal_gaps
 from scripts.train_strategy_model import scenario
 
 def protected(p,l):
  m=gap_measurements(p,l)
- return m['internal_floor_row_gap_cm2'],m['occupied_length_cm'],sum(x['z']>0 for x in p),float(l['internal_length'])-max(x['x']+x['placed_length'] for x in p)
+ return internal_gaps(p)['internal_gap_volume_cm3'],float(l['internal_length'])-max(x['x']+x['placed_length'] for x in p)
 
 def test_refinement_rotates_and_repositions_without_mutating_original():
  truck=dict(internal_length=200,internal_width=100,internal_height=80,max_weight=1000)
