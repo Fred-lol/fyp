@@ -316,7 +316,7 @@ def _failure(message, *, placements=None):
     return {"success": False, "message": message, "placements": placements or []}
 
 
-def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True):
+def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True, refine=True):
     """Compare multi-start scored layouts with the preserved verified baseline."""
     started = perf_counter()
     boxes = list(boxes or [])
@@ -408,6 +408,23 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True):
         return _failure(reason)
 
     score, method, order_strategy, position_strategy, placements = min(candidates, key=lambda item: item[0])
+    refinement_stats = {"refinement_trials": 0, "refinement_moves": 0}
+    initial_score = score
+    if refine and perf_counter() < deadline:
+        from optimization.refinement import refine_plan
+        refined, refinement_stats = refine_plan(
+            placements, lorry, boxes, _compactness_score, min(deadline, perf_counter()+2.0),
+            protected_metrics=lambda p,l: (
+                gap_measurements(p,l)["internal_floor_row_gap_cm2"],
+                gap_measurements(p,l)["occupied_length_cm"],
+                sum(item["z"] > 1e-7 for item in p),
+                float(l["internal_length"])-max(item["x"]+item["placed_length"] for item in p),
+            ),
+        )
+        refined_score = _compactness_score(refined, lorry)
+        if refined_score < score:
+            placements, score = refined, refined_score
+            method += "+refined"
     valid, errors = validate_plan(placements, lorry, total_weight, expected_boxes=boxes)
     if not valid:
         return _failure("Independent loading-plan validation failed: " + " ".join(errors), placements=placements)
@@ -418,7 +435,7 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True):
     center_x, center_y = center_of_mass_xy(placements)
     elapsed = perf_counter() - started
     logging.getLogger(__name__).info(
-        "optimizer=projected-face-search-v2 ml_inference=%s selected=%s/%s/%s seconds=%.4f gaps=%s",
+        "optimizer=projected-face-refinement-v3 ml_inference=%s selected=%s/%s/%s seconds=%.4f gaps=%s",
         ml_used, method, order_strategy, position_strategy, elapsed, gap_measurements(placements, lorry),
     )
     if method == "baseline" and timed_out:
@@ -431,7 +448,10 @@ def generate_plan(lorry, boxes, *, time_limit_seconds=8.0, use_ml=True):
         "placements": placements,
         "metrics": {
             **gap_measurements(placements, lorry),
-            "optimizer_version": "projected-face-search-v2",
+            **refinement_stats,
+            "pre_refinement_score": initial_score,
+            "stacked_box_count": sum(p["z"] > 1e-7 for p in placements),
+            "optimizer_version": "projected-face-refinement-v3",
             "total_boxes": len(placements),
             "lorry_volume": lorry_volume,
             "used_volume": used_volume,
